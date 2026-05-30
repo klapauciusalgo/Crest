@@ -521,6 +521,7 @@ button {
   color: var(--muted);
   font-family: var(--font-mono);
   padding: 3px 5px;
+  white-space: nowrap;
 }
 
 .signal-tag.momentum {
