@@ -14,6 +14,8 @@
 - [x] First Vercel deployment created.
 - [x] Signed-out first page simplified to entry-only auth panel.
 - [x] Signed-out entry screen upgraded with animated terminal signal layer.
+- [x] Terminal chain heatmap redesigned into chain intelligence panel.
+- [x] Chain click interaction fetches mock project details and filters the grid.
 
 ## In Progress
 

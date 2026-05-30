@@ -20,10 +20,12 @@ import { formatPct, formatPrice } from "@/lib/formatters";
 import {
   AssetRow,
   ChainKey,
+  ChainProjectDetail,
   ProviderConfig,
   Timeframe,
   aiPresetResponses,
   chainColors,
+  getChainProjectDetails,
   getChainSummaries,
   getMockAssets,
   providerConfigs
@@ -77,6 +79,9 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const [aiOpen, setAiOpen] = useState(false);
   const [aiResponse, setAiResponse] = useState("");
   const [highlightedTickers, setHighlightedTickers] = useState<string[]>([]);
+  const [selectedChainMap, setSelectedChainMap] = useState<ChainKey>("BASE");
+  const [chainDetailStatus, setChainDetailStatus] = useState<"idle" | "loading" | "ready">("idle");
+  const [chainDetails, setChainDetails] = useState<ChainProjectDetail[]>([]);
   const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([
     { name: "BSC oversold", chains: ["BSC"], rsi: [0, 35], ma: [-20, 0] },
     { name: "MA111 support", chains: allChains, rsi: [20, 55], ma: [-5, 1] }
@@ -99,6 +104,16 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
 
   const chainSummaries = useMemo(() => getChainSummaries(sourceAssets), [sourceAssets]);
   const visibleTickers = useMemo(() => filteredAssets.map((asset) => asset.symbol), [filteredAssets]);
+
+  useEffect(() => {
+    setChainDetailStatus("loading");
+    const timer = window.setTimeout(() => {
+      setChainDetails(getChainProjectDetails(selectedChainMap, sourceAssets));
+      setChainDetailStatus("ready");
+    }, 240);
+
+    return () => window.clearTimeout(timer);
+  }, [selectedChainMap, sourceAssets]);
 
   useEffect(() => {
     if (!aiResponse) {
@@ -202,10 +217,14 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
             <span className="live-dot">Live mock</span>
           </div>
 
-          <ChainHeatmap
+          <ChainIntelligence
             summaries={chainSummaries}
+            selectedChain={selectedChainMap}
             selectedChains={selectedChains}
+            details={chainDetails}
+            status={chainDetailStatus}
             onSelect={(chain) => {
+              setSelectedChainMap(chain);
               setSelectedChains([chain]);
               setActivePreset(`${chain} drilldown`);
             }}
@@ -445,54 +464,105 @@ function Header({
   );
 }
 
-function ChainHeatmap({
+function ChainIntelligence({
   summaries,
+  selectedChain,
   selectedChains,
+  details,
+  status,
   onSelect
 }: {
   summaries: ReturnType<typeof getChainSummaries>;
+  selectedChain: ChainKey;
   selectedChains: ChainKey[];
+  details: ChainProjectDetail[];
+  status: "idle" | "loading" | "ready";
   onSelect: (chain: ChainKey) => void;
 }) {
+  const rankedSummaries = [...summaries].sort((first, second) => second.avgPriceChange - first.avgPriceChange);
+  const activeSummary = summaries.find((summary) => summary.chain === selectedChain);
+  const maxVolume = Math.max(...summaries.map((summary) => summary.avgVolumeChange), 1);
+
   return (
-    <div className="rail-section heatmap-card">
-      <div className="section-title">
-        <Activity size={14} />
-        Chain heatmap
+    <div className="rail-section chain-intel">
+      <div className="chain-intel-head">
+        <div className="section-title">
+          <Activity size={14} />
+          Chain intelligence
+        </div>
+        <span className={`fetch-state ${status}`}>{status === "loading" ? "Fetching" : "Ready"}</span>
       </div>
-      <svg className="heatmap-chart" viewBox="0 0 220 150" role="img" aria-label="Chain performance heatmap">
-        <line x1="20" y1="118" x2="205" y2="118" />
-        <line x1="32" y1="18" x2="32" y2="132" />
-        {summaries.map((summary, index) => {
-          const x = 40 + ((summary.avgPriceChange + 7) / 14) * 155;
-          const y = 122 - Math.min(100, summary.avgVolumeChange) * 0.9;
-          const radius = 15 + summary.assetCount * 4;
-          const positive = summary.avgPriceChange >= 0;
+
+      <div className="chain-map" aria-label="Chain strength map">
+        {rankedSummaries.map((summary) => {
+          const isActive = summary.chain === selectedChain;
+          const volumeWidth = Math.max(10, Math.min(100, (summary.avgVolumeChange / maxVolume) * 100));
+          const bias = summary.avgPriceChange >= 0 ? "positive" : "negative";
+
           return (
-            <g
-              className={`heat-bubble ${selectedChains.includes(summary.chain) ? "active" : ""}`}
+            <button
+              className={`chain-signal ${isActive ? "active" : ""} ${selectedChains.includes(summary.chain) ? "in-view" : ""}`}
               key={summary.chain}
               onClick={() => onSelect(summary.chain)}
-              tabIndex={0}
-              style={{ "--delay": `${index * 18}ms` } as React.CSSProperties}
+              style={{ "--chain-color": chainColors[summary.chain], "--volume-width": `${volumeWidth}%` } as CSSProperties}
             >
-              <circle
-                cx={x}
-                cy={y}
-                r={radius}
-                fill={positive ? "rgba(29,184,126,.28)" : "rgba(229,72,77,.25)"}
-                stroke={positive ? "#1DB87E" : "#E5484D"}
-              />
-              <text x={x} y={y - 2} textAnchor="middle">
-                {summary.chain}
-              </text>
-              <text x={x} y={y + 12} textAnchor="middle" className="heat-value">
-                {formatPct(summary.avgPriceChange)}
-              </text>
-            </g>
+              <span className="chain-signal-main">
+                <strong>{summary.chain}</strong>
+                <span className={bias}>{formatPct(summary.avgPriceChange)}</span>
+              </span>
+              <span className="chain-signal-bar" aria-hidden="true">
+                <i />
+              </span>
+              <span className="chain-signal-meta">
+                <span>{summary.assetCount} assets</span>
+                <span>{summary.gainers} up</span>
+                <span>{summary.losers} down</span>
+              </span>
+            </button>
           );
         })}
-      </svg>
+      </div>
+
+      <div className="chain-detail" style={{ "--chain-color": chainColors[selectedChain] } as CSSProperties}>
+        <div className="chain-detail-head">
+          <div>
+            <strong>{selectedChain} projects</strong>
+            <span>Fetched chain context</span>
+          </div>
+          <b>
+            {activeSummary ? `${activeSummary.gainers}/${activeSummary.assetCount}` : "0/0"}
+          </b>
+        </div>
+
+        <div className="chain-project-list">
+          {status === "loading"
+            ? Array.from({ length: 3 }).map((_, index) => (
+                <div className="chain-project-row loading" key={index}>
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              ))
+            : details.map((project) => (
+                <article className="chain-project-row" key={project.symbol}>
+                  <div>
+                    <strong>${project.symbol}</strong>
+                    <span>{project.name}</span>
+                  </div>
+                  <div>
+                    <span className="project-tag">{project.category}</span>
+                    <span className={`signal-tag ${project.signal.toLowerCase()}`}>{project.signal}</span>
+                  </div>
+                  <div className="project-metrics">
+                    <span className={project.priceChange24h >= 0 ? "positive" : "negative"}>{formatPct(project.priceChange24h)}</span>
+                    <span>RSI {project.rsi14.toFixed(1)}</span>
+                    <span className={project.maDistancePct >= 0 ? "positive" : "negative"}>{formatPct(project.maDistancePct)}</span>
+                  </div>
+                  <p>{project.note}</p>
+                </article>
+              ))}
+        </div>
+      </div>
     </div>
   );
 }

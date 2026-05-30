@@ -14,6 +14,12 @@ export type AssetRow = {
   maDistancePct: number;
 };
 
+export type ChainProjectDetail = AssetRow & {
+  category: "Layer 1" | "Exchange" | "Perps" | "Meme" | "Yield" | "Infra";
+  signal: "Momentum" | "Oversold" | "Support" | "Divergence" | "Neutral";
+  note: string;
+};
+
 export type ProviderConfig = {
   provider: string;
   model: string;
@@ -81,6 +87,56 @@ export function getChainSummaries(assets: AssetRow[]) {
   });
 }
 
+const projectCategories: Record<string, ChainProjectDetail["category"]> = {
+  AERO: "Exchange",
+  ARB: "Infra",
+  AVAX: "Layer 1",
+  BNB: "Layer 1",
+  BTC: "Layer 1",
+  CAKE: "Exchange",
+  ETH: "Layer 1",
+  GMX: "Perps",
+  JOE: "Exchange",
+  JUP: "Exchange",
+  MATIC: "Infra",
+  OP: "Infra",
+  PENDLE: "Yield",
+  SOL: "Layer 1",
+  TON: "Layer 1",
+  WIF: "Meme"
+};
+
+const projectNotes: Record<string, string> = {
+  AERO: "Base beta leader with elevated turnover and a wide MA111 premium.",
+  ARB: "Weak structure, high volume, and below MA111. Watch for capitulation or reclaim.",
+  AVAX: "Positive trend above MA111 with moderate volume confirmation.",
+  BNB: "Oversold relative to MA111 with enough volume to stay on reversal watch.",
+  BTC: "Benchmark risk asset holding above MA111 while liquidity stays constructive.",
+  CAKE: "DEX token near support with high volume, suitable for oversold scans.",
+  ETH: "Large-cap anchor hovering near MA111, useful as a risk baseline.",
+  GMX: "Perps venue showing oversold pressure and elevated volume on Arbitrum.",
+  JOE: "Avalanche exchange token with steady trend support.",
+  JUP: "Solana exchange flow remains positive without overbought extension.",
+  MATIC: "Infrastructure name below MA111, still inside a controlled pullback.",
+  OP: "L2 beta name staying close to MA111 with neutral RSI.",
+  PENDLE: "Yield asset near support with muted momentum.",
+  SOL: "High beta leader with strong trend posture and active volume.",
+  TON: "Momentum leader with hot RSI, needs confirmation before chasing.",
+  WIF: "High-volume meme risk, deeply extended below MA111."
+};
+
+export function getChainProjectDetails(chain: ChainKey, assets: AssetRow[]): ChainProjectDetail[] {
+  return assets
+    .filter((asset) => asset.chain === chain)
+    .map((asset) => ({
+      ...asset,
+      category: projectCategories[asset.symbol] || "Infra",
+      signal: getSignal(asset),
+      note: projectNotes[asset.symbol] || "Tracked project inside the active chain context."
+    }))
+    .sort((first, second) => second.volumeChange24h - first.volumeChange24h);
+}
+
 export const aiPresetResponses: Record<string, string> = {
   oversold:
     "$WIF, $ARB, $GMX, and $BNB are the cleanest oversold names in the current filtered view. $ARB and $GMX have the weakest MA111 posture, while $BNB is below MA111 with a moderate volume lift.\n\n> **Next:** \"which of these have volume spike above 20%?\"",
@@ -109,4 +165,12 @@ function round(value: number) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function getSignal(asset: AssetRow): ChainProjectDetail["signal"] {
+  if (asset.rsi14 < 32) return "Oversold";
+  if (asset.priceChange24h > 2.5 && asset.volumeChange24h > 20) return "Momentum";
+  if (asset.maDistancePct > -5 && asset.maDistancePct < 2) return "Support";
+  if (asset.priceChange24h < 0 && asset.volumeChange24h > 35) return "Divergence";
+  return "Neutral";
 }
