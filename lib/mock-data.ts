@@ -1,6 +1,7 @@
 export type Timeframe = "30m" | "4h";
 
 export type ChainKey = "ETH" | "BSC" | "SOL" | "BASE" | "ARB" | "AVAX" | "MATIC" | "TON";
+export type SectorKey = "Layer 1" | "DeFi" | "AI" | "CEX" | "DEX" | "Perps" | "Meme" | "Yield" | "Infra";
 
 export type AssetRow = {
   symbol: string;
@@ -10,12 +11,13 @@ export type AssetRow = {
   rsi14: number;
   volumeChange24h: number;
   chain: ChainKey;
+  sectors: SectorKey[];
   ma111: number;
   maDistancePct: number;
 };
 
 export type ChainProjectDetail = AssetRow & {
-  category: "Layer 1" | "Exchange" | "Perps" | "Meme" | "Yield" | "Infra";
+  category: SectorKey;
   signal: "Momentum" | "Oversold" | "Support" | "Divergence" | "Neutral";
   note: string;
 };
@@ -40,23 +42,39 @@ export const chainColors: Record<ChainKey, string> = {
   TON: "#0098EA"
 };
 
+export const sectorColors: Record<SectorKey, string> = {
+  "Layer 1": "#8FA1FF",
+  DeFi: "#1DB87E",
+  AI: "#D778FF",
+  CEX: "#F0B90B",
+  DEX: "#4C9EFF",
+  Perps: "#FF8C42",
+  Meme: "#FF6B8A",
+  Yield: "#3DD68C",
+  Infra: "#8D93A6"
+};
+
 const baseAssets: AssetRow[] = [
-  { symbol: "BTC", name: "Bitcoin", price: 67240.12, priceChange24h: 1.82, rsi14: 61.4, volumeChange24h: 12.6, chain: "ETH", ma111: 64220, maDistancePct: 4.7 },
-  { symbol: "ETH", name: "Ethereum", price: 3488.41, priceChange24h: -0.64, rsi14: 44.2, volumeChange24h: 7.8, chain: "ETH", ma111: 3540, maDistancePct: -1.46 },
-  { symbol: "BNB", name: "BNB", price: 594.18, priceChange24h: -2.18, rsi14: 28.6, volumeChange24h: 18.9, chain: "BSC", ma111: 635.2, maDistancePct: -6.46 },
-  { symbol: "SOL", name: "Solana", price: 151.67, priceChange24h: 3.14, rsi14: 68.8, volumeChange24h: 44.1, chain: "SOL", ma111: 139.44, maDistancePct: 8.77 },
-  { symbol: "ARB", name: "Arbitrum", price: 1.18, priceChange24h: -4.84, rsi14: 24.9, volumeChange24h: 56.2, chain: "ARB", ma111: 1.29, maDistancePct: -8.53 },
-  { symbol: "AVAX", name: "Avalanche", price: 32.44, priceChange24h: 2.28, rsi14: 57.2, volumeChange24h: 21.4, chain: "AVAX", ma111: 30.11, maDistancePct: 7.74 },
-  { symbol: "MATIC", name: "Polygon", price: 0.74, priceChange24h: -1.22, rsi14: 35.1, volumeChange24h: 9.7, chain: "MATIC", ma111: 0.78, maDistancePct: -5.13 },
-  { symbol: "TON", name: "Toncoin", price: 6.34, priceChange24h: 5.41, rsi14: 72.2, volumeChange24h: 33.5, chain: "TON", ma111: 5.88, maDistancePct: 7.82 },
-  { symbol: "OP", name: "Optimism", price: 2.06, priceChange24h: -0.31, rsi14: 49.8, volumeChange24h: 3.2, chain: "BASE", ma111: 2.03, maDistancePct: 1.48 },
-  { symbol: "AERO", name: "Aerodrome", price: 1.12, priceChange24h: 7.93, rsi14: 65.7, volumeChange24h: 62.4, chain: "BASE", ma111: 0.96, maDistancePct: 16.67 },
-  { symbol: "CAKE", name: "PancakeSwap", price: 2.84, priceChange24h: -3.72, rsi14: 31.2, volumeChange24h: 52.8, chain: "BSC", ma111: 2.96, maDistancePct: -4.05 },
-  { symbol: "JUP", name: "Jupiter", price: 0.91, priceChange24h: 2.62, rsi14: 58.3, volumeChange24h: 26.2, chain: "SOL", ma111: 0.86, maDistancePct: 5.81 },
-  { symbol: "PENDLE", name: "Pendle", price: 5.48, priceChange24h: 0.84, rsi14: 39.7, volumeChange24h: 14.8, chain: "ETH", ma111: 5.72, maDistancePct: -4.2 },
-  { symbol: "GMX", name: "GMX", price: 31.94, priceChange24h: -5.36, rsi14: 27.8, volumeChange24h: 41.7, chain: "ARB", ma111: 34.82, maDistancePct: -8.27 },
-  { symbol: "JOE", name: "Trader Joe", price: 0.48, priceChange24h: 1.16, rsi14: 54.3, volumeChange24h: 19.1, chain: "AVAX", ma111: 0.45, maDistancePct: 6.67 },
-  { symbol: "WIF", name: "dogwifhat", price: 2.41, priceChange24h: -6.11, rsi14: 22.4, volumeChange24h: 72.5, chain: "SOL", ma111: 2.82, maDistancePct: -14.54 }
+  { symbol: "BTC", name: "Bitcoin", price: 67240.12, priceChange24h: 1.82, rsi14: 61.4, volumeChange24h: 12.6, chain: "ETH", sectors: ["Layer 1"], ma111: 64220, maDistancePct: 4.7 },
+  { symbol: "ETH", name: "Ethereum", price: 3488.41, priceChange24h: -0.64, rsi14: 44.2, volumeChange24h: 7.8, chain: "ETH", sectors: ["Layer 1", "Infra"], ma111: 3540, maDistancePct: -1.46 },
+  { symbol: "BNB", name: "BNB", price: 594.18, priceChange24h: -2.18, rsi14: 28.6, volumeChange24h: 18.9, chain: "BSC", sectors: ["Layer 1", "CEX"], ma111: 635.2, maDistancePct: -6.46 },
+  { symbol: "SOL", name: "Solana", price: 151.67, priceChange24h: 3.14, rsi14: 68.8, volumeChange24h: 44.1, chain: "SOL", sectors: ["Layer 1"], ma111: 139.44, maDistancePct: 8.77 },
+  { symbol: "ARB", name: "Arbitrum", price: 1.18, priceChange24h: -4.84, rsi14: 24.9, volumeChange24h: 56.2, chain: "ARB", sectors: ["Infra"], ma111: 1.29, maDistancePct: -8.53 },
+  { symbol: "AVAX", name: "Avalanche", price: 32.44, priceChange24h: 2.28, rsi14: 57.2, volumeChange24h: 21.4, chain: "AVAX", sectors: ["Layer 1"], ma111: 30.11, maDistancePct: 7.74 },
+  { symbol: "MATIC", name: "Polygon", price: 0.74, priceChange24h: -1.22, rsi14: 35.1, volumeChange24h: 9.7, chain: "MATIC", sectors: ["Infra"], ma111: 0.78, maDistancePct: -5.13 },
+  { symbol: "TON", name: "Toncoin", price: 6.34, priceChange24h: 5.41, rsi14: 72.2, volumeChange24h: 33.5, chain: "TON", sectors: ["Layer 1"], ma111: 5.88, maDistancePct: 7.82 },
+  { symbol: "OP", name: "Optimism", price: 2.06, priceChange24h: -0.31, rsi14: 49.8, volumeChange24h: 3.2, chain: "BASE", sectors: ["Infra"], ma111: 2.03, maDistancePct: 1.48 },
+  { symbol: "AERO", name: "Aerodrome", price: 1.12, priceChange24h: 7.93, rsi14: 65.7, volumeChange24h: 62.4, chain: "BASE", sectors: ["DeFi", "DEX"], ma111: 0.96, maDistancePct: 16.67 },
+  { symbol: "CAKE", name: "PancakeSwap", price: 2.84, priceChange24h: -3.72, rsi14: 31.2, volumeChange24h: 52.8, chain: "BSC", sectors: ["DeFi", "DEX"], ma111: 2.96, maDistancePct: -4.05 },
+  { symbol: "JUP", name: "Jupiter", price: 0.91, priceChange24h: 2.62, rsi14: 58.3, volumeChange24h: 26.2, chain: "SOL", sectors: ["DeFi", "DEX"], ma111: 0.86, maDistancePct: 5.81 },
+  { symbol: "PENDLE", name: "Pendle", price: 5.48, priceChange24h: 0.84, rsi14: 39.7, volumeChange24h: 14.8, chain: "ETH", sectors: ["DeFi", "Yield"], ma111: 5.72, maDistancePct: -4.2 },
+  { symbol: "GMX", name: "GMX", price: 31.94, priceChange24h: -5.36, rsi14: 27.8, volumeChange24h: 41.7, chain: "ARB", sectors: ["DeFi", "Perps"], ma111: 34.82, maDistancePct: -8.27 },
+  { symbol: "JOE", name: "Trader Joe", price: 0.48, priceChange24h: 1.16, rsi14: 54.3, volumeChange24h: 19.1, chain: "AVAX", sectors: ["DeFi", "DEX"], ma111: 0.45, maDistancePct: 6.67 },
+  { symbol: "WIF", name: "dogwifhat", price: 2.41, priceChange24h: -6.11, rsi14: 22.4, volumeChange24h: 72.5, chain: "SOL", sectors: ["Meme"], ma111: 2.82, maDistancePct: -14.54 },
+  { symbol: "FET", name: "Artificial Superintelligence", price: 1.42, priceChange24h: 4.16, rsi14: 63.9, volumeChange24h: 38.6, chain: "ETH", sectors: ["AI"], ma111: 1.28, maDistancePct: 10.94 },
+  { symbol: "TAO", name: "Bittensor", price: 438.2, priceChange24h: 2.44, rsi14: 59.5, volumeChange24h: 24.3, chain: "ETH", sectors: ["AI"], ma111: 411.4, maDistancePct: 6.51 },
+  { symbol: "UNI", name: "Uniswap", price: 9.32, priceChange24h: -0.92, rsi14: 45.8, volumeChange24h: 11.4, chain: "ETH", sectors: ["DeFi", "DEX"], ma111: 9.08, maDistancePct: 2.64 },
+  { symbol: "OKB", name: "OKB", price: 51.84, priceChange24h: 1.36, rsi14: 52.1, volumeChange24h: 8.8, chain: "ETH", sectors: ["CEX"], ma111: 49.6, maDistancePct: 4.52 }
 ];
 
 export function getMockAssets(timeframe: Timeframe): AssetRow[] {
@@ -87,22 +105,45 @@ export function getChainSummaries(assets: AssetRow[]) {
   });
 }
 
+export function getSectorSummaries(assets: AssetRow[]) {
+  const sectors = Array.from(new Set(assets.flatMap((asset) => asset.sectors)));
+  return sectors.map((sector) => {
+    const rows = assets.filter((asset) => asset.sectors.includes(sector));
+    const avgPrice = average(rows.map((asset) => asset.priceChange24h));
+    const avgVolume = average(rows.map((asset) => asset.volumeChange24h));
+    const leader = [...rows].sort((first, second) => second.priceChange24h - first.priceChange24h)[0];
+    return {
+      sector,
+      avgPriceChange: round(avgPrice),
+      avgVolumeChange: round(avgVolume),
+      gainers: rows.filter((asset) => asset.priceChange24h >= 0).length,
+      losers: rows.filter((asset) => asset.priceChange24h < 0).length,
+      assetCount: rows.length,
+      leader: leader?.symbol || "-"
+    };
+  });
+}
+
 const projectCategories: Record<string, ChainProjectDetail["category"]> = {
-  AERO: "Exchange",
+  AERO: "DEX",
   ARB: "Infra",
   AVAX: "Layer 1",
   BNB: "Layer 1",
   BTC: "Layer 1",
-  CAKE: "Exchange",
+  CAKE: "DEX",
   ETH: "Layer 1",
+  FET: "AI",
   GMX: "Perps",
-  JOE: "Exchange",
-  JUP: "Exchange",
+  JOE: "DEX",
+  JUP: "DEX",
   MATIC: "Infra",
+  OKB: "CEX",
   OP: "Infra",
   PENDLE: "Yield",
   SOL: "Layer 1",
+  TAO: "AI",
   TON: "Layer 1",
+  UNI: "DEX",
   WIF: "Meme"
 };
 
@@ -114,14 +155,18 @@ const projectNotes: Record<string, string> = {
   BTC: "Benchmark risk asset holding above MA111 while liquidity stays constructive.",
   CAKE: "DEX token near support with high volume, suitable for oversold scans.",
   ETH: "Large-cap anchor hovering near MA111, useful as a risk baseline.",
+  FET: "AI sector leader with constructive trend and rising turnover.",
   GMX: "Perps venue showing oversold pressure and elevated volume on Arbitrum.",
   JOE: "Avalanche exchange token with steady trend support.",
   JUP: "Solana exchange flow remains positive without overbought extension.",
   MATIC: "Infrastructure name below MA111, still inside a controlled pullback.",
+  OKB: "CEX-linked asset holding above MA111 with stable trend participation.",
   OP: "L2 beta name staying close to MA111 with neutral RSI.",
   PENDLE: "Yield asset near support with muted momentum.",
   SOL: "High beta leader with strong trend posture and active volume.",
+  TAO: "AI infrastructure proxy with positive momentum and clean MA111 posture.",
   TON: "Momentum leader with hot RSI, needs confirmation before chasing.",
+  UNI: "Ethereum DEX benchmark sitting above MA111 with neutral momentum.",
   WIF: "High-volume meme risk, deeply extended below MA111."
 };
 
@@ -135,6 +180,18 @@ export function getChainProjectDetails(chain: ChainKey, assets: AssetRow[]): Cha
       note: projectNotes[asset.symbol] || "Tracked project inside the active chain context."
     }))
     .sort((first, second) => second.volumeChange24h - first.volumeChange24h);
+}
+
+export function getSectorProjectDetails(sector: SectorKey, assets: AssetRow[]): ChainProjectDetail[] {
+  return assets
+    .filter((asset) => asset.sectors.includes(sector))
+    .map((asset) => ({
+      ...asset,
+      category: sector,
+      signal: getSignal(asset),
+      note: projectNotes[asset.symbol] || "Tracked project inside the active sector context."
+    }))
+    .sort((first, second) => second.priceChange24h - first.priceChange24h);
 }
 
 export const aiPresetResponses: Record<string, string> = {

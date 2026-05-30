@@ -22,6 +22,29 @@
   box-sizing: border-box;
 }
 
+* {
+  scrollbar-color: #3a3f51 #101115;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #101115;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 2px solid #101115;
+  background: #343946;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #4a5062;
+}
+
 html,
 body {
   margin: 0;
@@ -252,6 +275,7 @@ button {
   flex-direction: column;
   min-height: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
   border-right: 1px solid var(--border);
   background: #101115;
 }
@@ -350,10 +374,48 @@ button {
   color: var(--blue);
 }
 
+.intel-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  background: #0f1116;
+}
+
+.intel-tabs button {
+  min-height: 28px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.intel-tabs button:last-child {
+  border-right: 0;
+}
+
+.intel-tabs button.active,
+.intel-tabs button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
 .chain-map {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
+}
+
+.sector-map {
+  max-height: 260px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.sector-map .chain-signal {
+  min-height: 60px;
 }
 
 .chain-signal {
@@ -401,9 +463,13 @@ button {
 }
 
 .chain-signal-main strong {
+  min-width: 0;
+  overflow: hidden;
   color: var(--text);
   font-family: var(--font-mono);
   font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chain-signal-main span {
@@ -469,8 +535,9 @@ button {
 
 .chain-project-list {
   display: grid;
-  max-height: 208px;
+  max-height: 202px;
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .chain-project-row {
@@ -502,10 +569,8 @@ button {
 
 .chain-project-row p {
   margin: 0;
-  overflow: hidden;
   line-height: 1.45;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .chain-project-row > div:nth-child(2) {
@@ -964,6 +1029,7 @@ input[type="range"] {
 .grid-shell {
   height: calc(100vh - 152px);
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .asset-grid {
@@ -1177,6 +1243,7 @@ input[type="range"] {
 
 .ai-presets {
   overflow-x: auto;
+  scrollbar-gutter: stable;
 }
 
 .ai-presets button {
@@ -1197,6 +1264,7 @@ input[type="range"] {
 .ai-response {
   margin: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
   padding: 14px;
   color: var(--text);
   font-family: var(--font-mono);

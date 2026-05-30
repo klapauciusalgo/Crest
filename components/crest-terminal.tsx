@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  BarChart3,
   Bot,
   ChevronDown,
   ChevronUp,
@@ -22,13 +23,17 @@ import {
   ChainKey,
   ChainProjectDetail,
   ProviderConfig,
+  SectorKey,
   Timeframe,
   aiPresetResponses,
   chainColors,
   getChainProjectDetails,
   getChainSummaries,
   getMockAssets,
-  providerConfigs
+  getSectorProjectDetails,
+  getSectorSummaries,
+  providerConfigs,
+  sectorColors
 } from "@/lib/mock-data";
 
 type ViewMode = "terminal" | "admin";
@@ -38,6 +43,7 @@ type SortKey = keyof Pick<
   "symbol" | "price" | "priceChange24h" | "rsi14" | "volumeChange24h" | "chain" | "ma111" | "maDistancePct"
 >;
 type SortDirection = "none" | "asc" | "desc";
+type IntelligenceMode = "chain" | "sector";
 type SavedPreset = {
   name: string;
   chains: ChainKey[];
@@ -79,9 +85,13 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const [aiOpen, setAiOpen] = useState(false);
   const [aiResponse, setAiResponse] = useState("");
   const [highlightedTickers, setHighlightedTickers] = useState<string[]>([]);
+  const [intelligenceMode, setIntelligenceMode] = useState<IntelligenceMode>("chain");
   const [selectedChainMap, setSelectedChainMap] = useState<ChainKey>("BASE");
+  const [selectedSectorMap, setSelectedSectorMap] = useState<SectorKey>("DeFi");
   const [chainDetailStatus, setChainDetailStatus] = useState<"idle" | "loading" | "ready">("idle");
+  const [sectorDetailStatus, setSectorDetailStatus] = useState<"idle" | "loading" | "ready">("idle");
   const [chainDetails, setChainDetails] = useState<ChainProjectDetail[]>([]);
+  const [sectorDetails, setSectorDetails] = useState<ChainProjectDetail[]>([]);
   const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([
     { name: "BSC oversold", chains: ["BSC"], rsi: [0, 35], ma: [-20, 0] },
     { name: "MA111 support", chains: allChains, rsi: [20, 55], ma: [-5, 1] }
@@ -103,6 +113,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   }, [maRange, rsiRange, selectedChains, sortDirection, sortKey, sourceAssets]);
 
   const chainSummaries = useMemo(() => getChainSummaries(sourceAssets), [sourceAssets]);
+  const sectorSummaries = useMemo(() => getSectorSummaries(sourceAssets), [sourceAssets]);
   const visibleTickers = useMemo(() => filteredAssets.map((asset) => asset.symbol), [filteredAssets]);
 
   useEffect(() => {
@@ -114,6 +125,16 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
 
     return () => window.clearTimeout(timer);
   }, [selectedChainMap, sourceAssets]);
+
+  useEffect(() => {
+    setSectorDetailStatus("loading");
+    const timer = window.setTimeout(() => {
+      setSectorDetails(getSectorProjectDetails(selectedSectorMap, sourceAssets));
+      setSectorDetailStatus("ready");
+    }, 240);
+
+    return () => window.clearTimeout(timer);
+  }, [selectedSectorMap, sourceAssets]);
 
   useEffect(() => {
     if (!aiResponse) {
@@ -217,16 +238,23 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
             <span className="live-dot">Live mock</span>
           </div>
 
-          <ChainIntelligence
-            summaries={chainSummaries}
+          <MarketIntelligence
+            mode={intelligenceMode}
+            onMode={setIntelligenceMode}
+            chainSummaries={chainSummaries}
             selectedChain={selectedChainMap}
             selectedChains={selectedChains}
-            details={chainDetails}
-            status={chainDetailStatus}
-            onSelect={(chain) => {
+            chainDetails={chainDetails}
+            chainStatus={chainDetailStatus}
+            sectorSummaries={sectorSummaries}
+            selectedSector={selectedSectorMap}
+            sectorDetails={sectorDetails}
+            sectorStatus={sectorDetailStatus}
+            onChainSelect={(chain) => {
               setSelectedChainMap(chain);
-              setSelectedChains([chain]);
-              setActivePreset(`${chain} drilldown`);
+            }}
+            onSectorSelect={(sector) => {
+              setSelectedSectorMap(sector);
             }}
           />
 
@@ -236,8 +264,22 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
               Chains
             </div>
             <div className="chain-actions">
-              <button onClick={() => setSelectedChains(allChains)}>All</button>
-              <button onClick={() => setSelectedChains([])}>None</button>
+              <button
+                onClick={() => {
+                  setSelectedChains(allChains);
+                  setActivePreset("Manual");
+                }}
+              >
+                All
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedChains([]);
+                  setActivePreset("Manual");
+                }}
+              >
+                None
+              </button>
             </div>
             <div className="chain-filter-list">
               {allChains.map((chain) => (
@@ -464,50 +506,110 @@ function Header({
   );
 }
 
-function ChainIntelligence({
-  summaries,
+function MarketIntelligence({
+  mode,
+  onMode,
+  chainSummaries,
   selectedChain,
   selectedChains,
-  details,
-  status,
-  onSelect
+  chainDetails,
+  chainStatus,
+  sectorSummaries,
+  selectedSector,
+  sectorDetails,
+  sectorStatus,
+  onChainSelect,
+  onSectorSelect
 }: {
-  summaries: ReturnType<typeof getChainSummaries>;
+  mode: IntelligenceMode;
+  onMode: (mode: IntelligenceMode) => void;
+  chainSummaries: ReturnType<typeof getChainSummaries>;
   selectedChain: ChainKey;
   selectedChains: ChainKey[];
-  details: ChainProjectDetail[];
-  status: "idle" | "loading" | "ready";
-  onSelect: (chain: ChainKey) => void;
+  chainDetails: ChainProjectDetail[];
+  chainStatus: "idle" | "loading" | "ready";
+  sectorSummaries: ReturnType<typeof getSectorSummaries>;
+  selectedSector: SectorKey;
+  sectorDetails: ChainProjectDetail[];
+  sectorStatus: "idle" | "loading" | "ready";
+  onChainSelect: (chain: ChainKey) => void;
+  onSectorSelect: (sector: SectorKey) => void;
 }) {
-  const rankedSummaries = [...summaries].sort((first, second) => second.avgPriceChange - first.avgPriceChange);
-  const activeSummary = summaries.find((summary) => summary.chain === selectedChain);
-  const maxVolume = Math.max(...summaries.map((summary) => summary.avgVolumeChange), 1);
+  const rankedChainSummaries = [...chainSummaries].sort((first, second) => second.avgPriceChange - first.avgPriceChange);
+  const rankedSectorSummaries = [...sectorSummaries].sort((first, second) => second.avgPriceChange - first.avgPriceChange);
+  const activeChainSummary = chainSummaries.find((summary) => summary.chain === selectedChain);
+  const activeSectorSummary = sectorSummaries.find((summary) => summary.sector === selectedSector);
+  const maxChainVolume = Math.max(...chainSummaries.map((summary) => summary.avgVolumeChange), 1);
+  const maxSectorVolume = Math.max(...sectorSummaries.map((summary) => summary.avgVolumeChange), 1);
+  const isChainMode = mode === "chain";
+  const status = isChainMode ? chainStatus : sectorStatus;
+  const color = isChainMode ? chainColors[selectedChain] : sectorColors[selectedSector];
 
   return (
     <div className="rail-section chain-intel">
       <div className="chain-intel-head">
         <div className="section-title">
-          <Activity size={14} />
-          Chain intelligence
+          {isChainMode ? <Activity size={14} /> : <BarChart3 size={14} />}
+          {isChainMode ? "Chain intelligence" : "Sector intelligence"}
         </div>
         <span className={`fetch-state ${status}`}>{status === "loading" ? "Fetching" : "Ready"}</span>
       </div>
 
-      <div className="chain-map" aria-label="Chain strength map">
-        {rankedSummaries.map((summary) => {
-          const isActive = summary.chain === selectedChain;
-          const volumeWidth = Math.max(10, Math.min(100, (summary.avgVolumeChange / maxVolume) * 100));
+      <div className="intel-tabs" aria-label="Intelligence view">
+        <button className={isChainMode ? "active" : ""} onClick={() => onMode("chain")}>
+          Chain
+        </button>
+        <button className={!isChainMode ? "active" : ""} onClick={() => onMode("sector")}>
+          Sector
+        </button>
+      </div>
+
+      {isChainMode ? (
+        <div className="chain-map" aria-label="Chain strength map">
+          {rankedChainSummaries.map((summary) => {
+            const isActive = summary.chain === selectedChain;
+            const volumeWidth = Math.max(10, Math.min(100, (summary.avgVolumeChange / maxChainVolume) * 100));
+            const bias = summary.avgPriceChange >= 0 ? "positive" : "negative";
+
+            return (
+              <button
+                className={`chain-signal ${isActive ? "active" : ""} ${selectedChains.includes(summary.chain) ? "in-view" : ""}`}
+                key={summary.chain}
+                onClick={() => onChainSelect(summary.chain)}
+                style={{ "--chain-color": chainColors[summary.chain], "--volume-width": `${volumeWidth}%` } as CSSProperties}
+              >
+                <span className="chain-signal-main">
+                  <strong>{summary.chain}</strong>
+                  <span className={bias}>{formatPct(summary.avgPriceChange)}</span>
+                </span>
+                <span className="chain-signal-bar" aria-hidden="true">
+                  <i />
+                </span>
+                <span className="chain-signal-meta">
+                  <span>{summary.assetCount} assets</span>
+                  <span>{summary.gainers} up</span>
+                  <span>{summary.losers} down</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="chain-map sector-map" aria-label="Sector strength map">
+          {rankedSectorSummaries.map((summary) => {
+            const isActive = summary.sector === selectedSector;
+            const volumeWidth = Math.max(10, Math.min(100, (summary.avgVolumeChange / maxSectorVolume) * 100));
           const bias = summary.avgPriceChange >= 0 ? "positive" : "negative";
 
           return (
             <button
-              className={`chain-signal ${isActive ? "active" : ""} ${selectedChains.includes(summary.chain) ? "in-view" : ""}`}
-              key={summary.chain}
-              onClick={() => onSelect(summary.chain)}
-              style={{ "--chain-color": chainColors[summary.chain], "--volume-width": `${volumeWidth}%` } as CSSProperties}
+              className={`chain-signal ${isActive ? "active" : ""} in-view`}
+              key={summary.sector}
+              onClick={() => onSectorSelect(summary.sector)}
+              style={{ "--chain-color": sectorColors[summary.sector], "--volume-width": `${volumeWidth}%` } as CSSProperties}
             >
               <span className="chain-signal-main">
-                <strong>{summary.chain}</strong>
+                <strong>{summary.sector}</strong>
                 <span className={bias}>{formatPct(summary.avgPriceChange)}</span>
               </span>
               <span className="chain-signal-bar" aria-hidden="true">
@@ -515,22 +617,29 @@ function ChainIntelligence({
               </span>
               <span className="chain-signal-meta">
                 <span>{summary.assetCount} assets</span>
+                <span>${summary.leader}</span>
                 <span>{summary.gainers} up</span>
-                <span>{summary.losers} down</span>
               </span>
             </button>
           );
         })}
-      </div>
+        </div>
+      )}
 
-      <div className="chain-detail" style={{ "--chain-color": chainColors[selectedChain] } as CSSProperties}>
+      <div className="chain-detail" style={{ "--chain-color": color } as CSSProperties}>
         <div className="chain-detail-head">
           <div>
-            <strong>{selectedChain} projects</strong>
-            <span>Fetched chain context</span>
+            <strong>{isChainMode ? selectedChain : selectedSector} projects</strong>
+            <span>{isChainMode ? "Fetched chain context" : "Fetched sector context"}</span>
           </div>
           <b>
-            {activeSummary ? `${activeSummary.gainers}/${activeSummary.assetCount}` : "0/0"}
+            {isChainMode
+              ? activeChainSummary
+                ? `${activeChainSummary.gainers}/${activeChainSummary.assetCount}`
+                : "0/0"
+              : activeSectorSummary
+                ? `${activeSectorSummary.gainers}/${activeSectorSummary.assetCount}`
+                : "0/0"}
           </b>
         </div>
 
@@ -543,11 +652,13 @@ function ChainIntelligence({
                   <span />
                 </div>
               ))
-            : details.map((project) => (
+            : (isChainMode ? chainDetails : sectorDetails).map((project) => (
                 <article className="chain-project-row" key={project.symbol}>
                   <div>
                     <strong>${project.symbol}</strong>
-                    <span>{project.name}</span>
+                    <span>
+                      {project.name} / {project.chain}
+                    </span>
                   </div>
                   <div>
                     <span className="project-tag">{project.category}</span>

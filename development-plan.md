@@ -7,7 +7,7 @@ Crest is a professional cryptocurrency analytics terminal for analysts who need 
 The product is not a landing page, retail crypto app, or general AI chatbot. It is a terminal-style market workstation with three primary surfaces:
 
 - Real-time asset grid for the top 300 cryptocurrencies by market cap.
-- Chain performance heatmap for comparing native-chain strength and volume behavior.
+- Chain and sector intelligence panels for comparing native-chain strength, category strength, and volume behavior.
 - Bottom-drawer AI assistant that answers questions using only the current filtered data snapshot.
 
 The canonical product name is **Crest**.
@@ -19,6 +19,8 @@ The canonical product name is **Crest**.
 - Track the top 300 cryptocurrencies by market cap.
 - Refresh real-time asset data every 60 seconds through Supabase Realtime delivery to the frontend.
 - Use CoinGecko Pro API or a CCXT-based aggregator as the upstream market source.
+- Use CoinGecko Pro category endpoints or CoinMarketCap category endpoints as upstream sources for sector metadata and sector constituent lists.
+- Normalize every asset into internal `chain` and `sectors` fields. A single asset may belong to multiple sectors, for example `DeFi` and `DEX`.
 - Compute indicators server-side:
   - RSI(14)
   - MA111
@@ -52,7 +54,7 @@ The grid must support:
 - Row highlighting when the AI response references a ticker.
 - Pinned assets, up to 5 per user.
 
-### 2.3 Chain Performance
+### 2.3 Chain Intelligence
 
 - Group all tracked assets by native chain.
 - Compute chain-level metrics:
@@ -62,15 +64,41 @@ The grid must support:
   - Count of losers.
   - Total asset count.
 - Refresh chain metrics every 5 minutes.
-- Display an interactive SVG heatmap:
-  - X-axis: average price change.
-  - Y-axis: average volume change.
-  - Bubble size: asset count.
-  - Bubble color: green/red signal based on average price change.
-  - Bubble opacity: volume-change intensity.
-- Clicking a chain bubble filters the asset grid to that chain.
+- Display an interactive chain intelligence panel:
+  - Ranked chain tiles by average price change.
+  - Volume-intensity bar per chain.
+  - Asset count and gainer/loser count per chain.
+  - Active inspected chain state.
+  - Fetched project detail list for the inspected chain.
+- Initial terminal load must show all chains in the grid.
+- Clicking a chain intelligence tile inspects/fetches that chain detail without forcing the grid into single-chain mode.
+- Users must be able to select multiple chains through the chain filter controls.
 
-### 2.4 Filters And Presets
+### 2.4 Sector Intelligence
+
+- Group tracked assets by sector/category, including but not limited to:
+  - `DeFi`
+  - `AI`
+  - `CEX`
+  - `DEX`
+  - `Perps`
+  - `Meme`
+  - `Yield`
+  - `Infra`
+  - `Layer 1`
+- Compute sector-level metrics:
+  - Average price change percentage.
+  - Average volume change percentage.
+  - Count of gainers.
+  - Count of losers.
+  - Total asset count.
+  - Current leading asset by 24h price change.
+- Refresh sector metrics every 5 minutes, matching chain intelligence cadence.
+- Display a sector intelligence view alongside chain intelligence.
+- Clicking a sector intelligence tile fetches project detail rows for that sector.
+- Production adapters should support CoinGecko categories first, with CoinMarketCap categories as a fallback or alternate provider.
+
+### 2.5 Filters And Presets
 
 - Multi-select chain filter with all/none shortcuts.
 - RSI range slider from 0 to 100.
@@ -84,7 +112,7 @@ The grid must support:
 - Store presets in Supabase Postgres.
 - UI slider visuals must react immediately; API updates should be debounced at 300ms.
 
-### 2.5 Authentication
+### 2.6 Authentication
 
 Crest requires unified sessions with `role: "user" | "admin"`.
 
@@ -99,7 +127,7 @@ Supported sign-in methods:
   - Support MetaMask, WalletConnect, and Phantom where practical.
   - Do not store passwords.
 
-### 2.6 AI Assistant
+### 2.7 AI Assistant
 
 The AI assistant is a context-constrained market analyst, not a general assistant.
 
@@ -109,6 +137,7 @@ Every AI request must include:
 - Current filter state.
 - Current visible asset rows, up to 50 rows max.
 - Chain summary.
+- Sector summary.
 - Pinned assets.
 - User message.
 - Recent session history, last 20 messages.
@@ -132,7 +161,7 @@ Preset prompt mappings:
 - MA111 breakdown watch: assets 0% to -5% below MA111.
 - Top gainers by chain: top 24h performer per chain.
 
-### 2.7 Admin Panel
+### 2.8 Admin Panel
 
 Admin route: `/admin/ai-config`
 
@@ -157,7 +186,7 @@ Requirements:
 - Configure per-user AI request daily limit.
 - Configure custom platform AI system prompt.
 
-### 2.8 Clickable End-To-End Product Journey
+### 2.9 Clickable End-To-End Product Journey
 
 Before integrating live market data, Supabase persistence, AI providers, or wallet/OAuth production auth, Crest should start with a clickable end-to-end interface prototype.
 
@@ -169,7 +198,8 @@ The prototype should be real frontend code, not a static design mock. It should 
 - Switch timeframe between `30m` and `4h`.
 - Filter by chain, RSI range, and MA111 distance.
 - Sort the asset grid by primary and secondary columns.
-- Click a chain bubble to filter the grid.
+- Click a chain intelligence tile to fetch chain project details while preserving multi-chain filtering.
+- Switch to sector intelligence and fetch sector project details.
 - Pin and unpin assets.
 - Open the AI drawer.
 - Select preset prompts.
@@ -212,7 +242,7 @@ crest/
   components/
     terminal-shell/
     asset-grid/
-    chain-heatmap/
+    intelligence-panel/
     filter-rail/
     ai-drawer/
     auth/
@@ -300,7 +330,7 @@ app/
   components/
     terminal-shell/
     asset-grid/
-    chain-heatmap/
+    intelligence-panel/
     filter-rail/
     ai-drawer/
     auth/
@@ -397,6 +427,7 @@ assets
   symbol
   name
   chain
+  sectors_json
   provider
   provider_ref
   market_cap_rank
@@ -424,6 +455,18 @@ chain_summaries
   gainers
   losers
   asset_count
+  updated_at
+
+sector_summaries
+  id
+  sector
+  timeframe
+  avg_price_change
+  avg_volume_change
+  gainers
+  losers
+  asset_count
+  leader_symbol
   updated_at
 
 filter_presets
@@ -500,6 +543,8 @@ All tables in the exposed `public` schema should use explicit RLS policies. Admi
 GET    /api/health
 GET    /api/market/assets?timeframe=30m|4h
 GET    /api/market/chains?timeframe=30m|4h
+GET    /api/market/sectors?timeframe=30m|4h
+GET    /api/market/sectors/{sector}/assets?timeframe=30m|4h
 POST   /api/ai/chat
 GET    /api/ai/messages
 POST   /api/siwe/challenge
@@ -523,6 +568,8 @@ Supabase Realtime topic: market:30m
 Supabase Realtime topic: market:4h
 Supabase Realtime topic: chains:30m
 Supabase Realtime topic: chains:4h
+Supabase Realtime topic: sectors:30m
+Supabase Realtime topic: sectors:4h
 ```
 
 Message examples:
@@ -542,6 +589,15 @@ Message examples:
   "timeframe": "4h",
   "updated_at": "2026-05-30T00:00:00Z",
   "chains": []
+}
+```
+
+```json
+{
+  "type": "sector_summary",
+  "timeframe": "4h",
+  "updated_at": "2026-05-30T00:00:00Z",
+  "sectors": []
 }
 ```
 
@@ -631,8 +687,9 @@ Header
   Timeframe segmented control
   Auth controls
 
-Left rail, 240px
-  Chain heatmap summary
+Left rail, 320px
+  Chain intelligence
+  Sector intelligence
   Chain filter
   RSI slider and presets
   MA111 distance filter
@@ -640,7 +697,7 @@ Left rail, 240px
 
 Main workspace
   Virtualized asset grid
-  Optional heatmap-expanded view
+  Optional expanded intelligence view
 
 Bottom drawer
   AI assistant
@@ -655,7 +712,7 @@ Bottom drawer
 - `RsiGauge`: block gauge plus right-aligned numeric value.
 - `ChainBadge`: constrained pill with chain color identity.
 - `MaDistanceCell`: arrow, signed percentage, directional color.
-- `ChainHeatmap`: custom SVG bubble chart.
+- `IntelligencePanel`: compact chain and sector strength map with fetched project details.
 - `AiDrawer`: collapsed and expanded terminal chat states.
 - `AdminAiConfigForm`: provider management and fallback priority.
 
@@ -669,14 +726,15 @@ The initial clickable UI should include these product states:
    - Avoids landing-page marketing treatment.
 
 2. **Main analyst terminal**
-   - Header, left filter rail, virtualized grid, chain heatmap summary, bottom AI drawer.
+   - Header, left filter rail, virtualized grid, chain/sector intelligence summary, bottom AI drawer.
    - Uses mock market rows for all required columns.
    - Supports timeframe switching, filtering, sorting, row hover, and pinned assets.
 
-3. **Expanded chain heatmap**
-   - Custom SVG bubble view.
-   - Tooltip and click-to-filter behavior.
-   - Immediate return path to the main grid.
+3. **Chain and sector intelligence**
+   - Compact ranked strength maps.
+   - Click-to-fetch project detail behavior.
+   - Chain inspection must not break multi-chain grid filtering.
+   - Sector inspection must expose project constituents from the selected sector.
 
 4. **AI assistant drawer**
    - Collapsed and expanded states.
@@ -700,7 +758,7 @@ Prototype acceptance criteria:
 
 - A reviewer can click through the full analyst journey without reading instructions.
 - Every major future backend capability has a visible UI affordance.
-- Mock data behaves realistically enough to test sorting, filtering, heatmap grouping, and AI context behavior.
+- Mock data behaves realistically enough to test sorting, filtering, intelligence grouping, and AI context behavior.
 - Mobile and desktop layouts are usable, even if the terminal experience is optimized for desktop.
 - The UI stays faithful to the terminal visual language: dense, dark, data-first, and restrained.
 
@@ -875,7 +933,8 @@ Deliverables:
 - Chain labels.
 - MA111 distance cell.
 - Primary and secondary sorting.
-- Chain heatmap with click-to-filter behavior.
+- Chain intelligence with project detail fetch behavior.
+- Sector intelligence with project detail fetch behavior.
 - Bottom AI drawer with mock streaming response.
 - Preset prompt flow.
 - Ticker row highlighting from AI responses.
@@ -921,14 +980,16 @@ Deliverables:
 - Supabase snapshot freshness/update logic.
 - Supabase Realtime market snapshot stream.
 - Chain summary backend aggregation.
+- Sector summary backend aggregation.
 - Five-minute chain summary refresh.
+- Five-minute sector summary refresh.
 
 Exit criteria:
 
 - Frontend can switch from mock snapshots to live or staged Supabase snapshots for both timeframes.
 - Indicator tests pass against known fixtures.
 - Chain metrics match backend aggregation tests.
-- Existing grid and heatmap UI work without structural changes.
+- Existing grid and intelligence UI work without structural changes.
 
 ### Phase 4: Authentication And User State
 
@@ -1031,7 +1092,8 @@ This order validates Crest as a real product experience early. Backend integrati
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
 | Upstream provider rate limits | Missing or delayed market updates | Batch requests, cache aggressively, add provider abstraction |
-| Ambiguous chain mapping | Incorrect heatmap grouping | Maintain curated chain mapping with provider overrides |
+| Ambiguous chain mapping | Incorrect chain intelligence grouping | Maintain curated chain mapping with provider overrides |
+| Ambiguous sector taxonomy | Incorrect sector intelligence grouping | Normalize provider category IDs into a curated internal sector map |
 | Candle availability gaps | Incorrect RSI/MA111 values | Mark unavailable indicators with static dashes and log gaps |
 | Frequent realtime updates | UI jank | Normalize store updates, virtualize rows, stabilize column widths |
 | AI hallucination beyond context | User mistrust | Backend-owned prompt assembly and strict missing-data fallback |
@@ -1048,7 +1110,8 @@ The practical MVP should include:
 - `30m` and `4h` timeframe support.
 - RSI(14), MA111, price delta, volume delta, MA distance.
 - Chain filter, RSI filter, MA distance filter.
-- Chain heatmap.
+- Chain intelligence.
+- Sector intelligence.
 - One auth method plus user presets, then add the second auth method.
 - AI assistant with one provider, SSE streaming, context injection, and preset prompts.
 - Admin provider configuration after the first AI provider path is stable.

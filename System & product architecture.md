@@ -3,6 +3,7 @@ You are a senior full-stack architect and product designer specializing in real-
 CORE DATA SYSTEM
 - Track top 300 cryptocurrencies by market cap, refreshed every 60 seconds via Supabase Realtime
 - Data source: CoinGecko Pro API or CCXT aggregator
+- Sector/category source: CoinGecko category endpoints or CoinMarketCap category endpoints, normalized into internal sectors such as DeFi, AI, CEX, DEX, Perps, Meme, Yield, Infra, and Layer 1
 - Compute server-side: RSI(14), MA111, volume delta 24h, price delta 24h
 - Store computed indicators in Supabase Postgres market snapshot rows, refreshed every 60s per asset per timeframe
 - Support two timeframes: 30 minutes (30m) and 4 hours (4h), switchable without page reload
@@ -13,15 +14,25 @@ DATA COLUMNS PER ASSET
 3. RSI(14) — with visual gauge: oversold <30, neutral 30–70, overbought >70
 4. Volume change % in 24h
 5. Chain label (ETH, BSC, SOL, BASE, ARB, AVAX, MATIC, TON, etc.)
-6. MA111 value
-7. Distance from MA111 in % = ((Price - MA111) / MA111) × 100
+6. Sector tags (DeFi, AI, CEX, DEX, Perps, Meme, Yield, Infra, Layer 1)
+7. MA111 value
+8. Distance from MA111 in % = ((Price - MA111) / MA111) × 100
 
 CHAIN PERFORMANCE GROUPING
 - Group all 300 assets by their native chain
 - Compute per-chain metrics: avg price change %, avg volume change %, count of gainers/losers
-- Display as interactive heatmap: X-axis = avg price change, Y-axis = avg volume change, bubble size = asset count
-- Click chain bubble → drill down to filtered asset list for that chain
+- Display as chain intelligence: ranked chain tiles, volume intensity, gainer/loser count, active inspected chain, fetched project details
+- Initial terminal load shows all chains in the grid
+- Click chain tile -> inspect/fetch chain project details without forcing single-chain filtering
+- Multi-select chain filtering remains available through filter controls
 - Update chain metrics every 5 minutes
+
+SECTOR PERFORMANCE GROUPING
+- Group all 300 assets by normalized sector/category
+- Compute per-sector metrics: avg price change %, avg volume change %, count of gainers/losers, asset count, leading asset
+- Display as sector intelligence next to chain intelligence
+- Click sector tile -> fetch project detail rows for that sector
+- Update sector metrics every 5 minutes
 
 FILTER & SORT SYSTEM
 - Multi-select chain filter with "all/none" shortcuts

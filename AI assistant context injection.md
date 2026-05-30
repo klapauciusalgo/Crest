@@ -12,12 +12,16 @@ CONTEXT FORMAT (injected automatically per request)
   "timeframe": "4h",
   "filter_state": { "chains": ["BSC", "ETH"], "rsi_range": [0, 35], "ma_distance_range": [-100, 0] },
   "visible_assets": [
-    { "symbol": "BNB", "price": 412.5, "price_change_24h": -2.1, "rsi_14": 28.3, "volume_change_24h": +15.2, "chain": "BSC", "ma111": 440.0, "ma_distance_pct": -6.25 },
+    { "symbol": "BNB", "price": 412.5, "price_change_24h": -2.1, "rsi_14": 28.3, "volume_change_24h": +15.2, "chain": "BSC", "sectors": ["Layer 1", "CEX"], "ma111": 440.0, "ma_distance_pct": -6.25 },
     ...up to 50 rows max
   ],
   "chain_summary": {
     "BSC": { "avg_price_change": -1.8, "avg_volume_change": +12.3, "gainers": 4, "losers": 11 },
     "ETH": { "avg_price_change": -0.4, "avg_volume_change": +3.1, "gainers": 8, "losers": 7 }
+  },
+  "sector_summary": {
+    "DeFi": { "avg_price_change": +1.4, "avg_volume_change": +18.7, "gainers": 12, "losers": 6, "leader": "AERO" },
+    "AI": { "avg_price_change": +3.2, "avg_volume_change": +31.4, "gainers": 5, "losers": 2, "leader": "FET" }
   },
   "pinned_assets": ["$BTC", "$ETH"],
   "user_message": "[user's actual prompt here]"

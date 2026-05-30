@@ -13,10 +13,10 @@ LAYOUT — THREE-ZONE ARCHITECTURE
 ├──────────────┬───────────────────────────────┤
 │  LEFT RAIL   │  MAIN GRID (virtualized)      │
 │  (240px)     │  300 rows, sticky header      │
-│  Chain heat- │  Multi-sort arrows, RSI gauge │
-│  map + filter│  Inline sparkline (optional)  │
+│  Chain/sector│  Multi-sort arrows, RSI gauge │
+│  intel+filter│  Inline sparkline (optional)  │
 │  presets     ├───────────────────────────────┤
-│              │  CHAIN HEATMAP VIEW (toggle)  │
+│              │  INTELLIGENCE VIEW (toggle)   │
 └──────────────┴───────────────────────────────┘
 │  BOTTOM DRAWER: AI Assistant (collapsible)   │
 └──────────────────────────────────────────────┘
@@ -54,11 +54,13 @@ MA111 DISTANCE COLUMN
 Show as: ▲ +12.4% or ▼ −8.1%
 Color-coded by direction. Positive = bullish, negative = bearish.
 
-CHAIN HEATMAP VIEW
-- SVG-based bubble chart. No chart library — custom D3 or raw SVG.
-- Each bubble: chain icon + avg price Δ label inside
-- Bubble color: green→red based on avg price change, opacity based on volume change
-- Tooltip: chain name, asset count, avg price Δ%, avg vol Δ%
+CHAIN AND SECTOR INTELLIGENCE
+- Compact ranked tiles, not decorative bubbles.
+- Chain mode: show chain label, avg price delta, volume intensity, asset count, and gainer count.
+- Sector mode: show sector label, avg price delta, volume intensity, asset count, and leading ticker.
+- Click tile: fetch project details in the same rail without forcing the grid to single-chain mode.
+- Detail copy must be readable. Do not truncate analyst notes unless a deliberate expand affordance exists.
+- Internal scrollbars must be thin, dark, and quiet. Avoid bright native scrollbars inside the terminal.
 
 AI ASSISTANT — BOTTOM DRAWER
 - Collapsed state: single bar at bottom — "Ask about current data ↑"

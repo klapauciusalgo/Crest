@@ -15,12 +15,15 @@
 - [x] Signed-out first page simplified to entry-only auth panel.
 - [x] Signed-out entry screen upgraded with animated terminal signal layer.
 - [x] Terminal chain heatmap redesigned into chain intelligence panel.
-- [x] Chain click interaction fetches mock project details and filters the grid.
+- [x] Chain click interaction fetches mock project details.
+- [x] Chain intelligence adjusted to preserve all-chain default and multi-chain filters.
+- [x] Sector intelligence added with mock category/project detail fetch.
+- [x] Requirement docs updated for sector intelligence and provider category sources.
 
 ## In Progress
 
 - [ ] Connect Vercel project to the GitHub repository integration.
-- [ ] Visual polish pass after real user review.
+- [ ] Continue terminal dashboard visual polish after user review.
 
 ## Next
 
