@@ -309,12 +309,21 @@ function AuthEntry({ onAuth }: { onAuth: (mode: AuthMode) => void }) {
   return (
     <main className="entry-shell">
       <section className="auth-screen auth-entry" aria-label="Crest entry">
-        <div>
-          <p className="micro-label">Crest Terminal</p>
+        <div className="entry-copy">
+          <div className="entry-brand">
+            <span className="brand-mark">C</span>
+            <span>Crest Terminal</span>
+          </div>
           <h1>Market structure, chain strength, and AI context in one dense workspace.</h1>
           <p>Enter as a mock analyst to test the complete product journey before production auth and live data are connected.</p>
+          <div className="entry-status" aria-label="Prototype status">
+            <span>Mock data</span>
+            <span>30m / 4h</span>
+            <span>AI drawer ready</span>
+          </div>
         </div>
         <div className="auth-actions">
+          <p className="micro-label">Access</p>
           <button onClick={() => onAuth("user")}>
             <CircleUserRound size={16} />
             Continue with X mock
@@ -327,6 +336,11 @@ function AuthEntry({ onAuth }: { onAuth: (mode: AuthMode) => void }) {
             <Lock size={16} />
             Enter admin mock
           </button>
+        </div>
+        <div className="entry-footer">
+          <span>Prototype build</span>
+          <span>Vercel preview</span>
+          <span>Supabase pending</span>
         </div>
       </section>
     </main>
@@ -503,7 +517,7 @@ function AssetGrid({
               <th className={column.align === "left" ? "left" : ""} key={column.key}>
                 <button onClick={() => onSort(column.key)}>
                   {column.label}
-                  <span>{sortKey === column.key ? sortGlyph(sortDirection) : ""}</span>
+                  <span>{sortKey === column.key ? sortGlyphAscii(sortDirection) : ""}</span>
                 </button>
               </th>
             ))}
@@ -728,6 +742,12 @@ function sortRows(rows: AssetRow[], key: SortKey, direction: SortDirection) {
     const result = typeof first === "string" ? String(first).localeCompare(String(second)) : Number(first) - Number(second);
     return direction === "asc" ? result : -result;
   });
+}
+
+function sortGlyphAscii(direction: SortDirection) {
+  if (direction === "asc") return "^";
+  if (direction === "desc") return "v";
+  return "";
 }
 
 function sortGlyph(direction: SortDirection) {
