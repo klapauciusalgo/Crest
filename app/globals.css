@@ -25,7 +25,9 @@
 html,
 body {
   margin: 0;
+  height: 100%;
   min-height: 100%;
+  overflow: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-ui);
@@ -55,7 +57,8 @@ button {
 .entry-shell {
   position: relative;
   display: grid;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   place-items: center;
   overflow: hidden;
   background:
@@ -64,7 +67,7 @@ button {
     radial-gradient(circle at 18% 12%, rgba(76, 158, 255, 0.09), transparent 28%),
     var(--bg);
   background-size: 72px 72px, 72px 72px, auto, auto;
-  padding: clamp(24px, 4vw, 56px);
+  padding: clamp(20px, 4vh, 48px) clamp(24px, 4vw, 56px);
 }
 
 .entry-shell::before {
@@ -503,14 +506,15 @@ input[type="range"] {
   position: relative;
   width: min(1180px, 100%);
   max-width: none;
-  min-height: min(640px, calc(100vh - 112px));
+  height: min(680px, calc(100dvh - 72px));
+  min-height: 0;
   margin: 0;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
   align-content: center;
   gap: clamp(36px, 6vw, 92px);
   overflow: hidden;
   background: #111318;
-  padding: clamp(34px, 5vw, 64px);
+  padding: clamp(28px, 5vh, 60px) clamp(34px, 5vw, 64px);
 }
 
 .auth-entry::before,
@@ -1152,6 +1156,129 @@ input[type="range"] {
   }
 }
 
+@media (max-height: 760px) and (min-width: 901px) {
+  .entry-shell {
+    padding: 18px 32px;
+  }
+
+  .auth-entry {
+    height: calc(100dvh - 36px);
+    gap: 54px;
+    padding: 30px 56px;
+  }
+
+  .auth-entry::before {
+    top: 18px;
+    font-size: 150px;
+  }
+
+  .auth-entry::after {
+    bottom: -28px;
+    font-size: 150px;
+  }
+
+  .entry-brand {
+    margin-bottom: 12px;
+  }
+
+  .entry-kernel {
+    margin-bottom: 16px;
+    padding: 7px 9px;
+  }
+
+  .auth-entry h1 {
+    max-width: 720px;
+    font-size: 76px;
+    line-height: 0.86;
+  }
+
+  .auth-entry p:not(.micro-label) {
+    max-width: 520px;
+    margin-top: 16px;
+    font-size: 13px;
+  }
+
+  .entry-status {
+    margin-top: 20px;
+  }
+
+  .entry-status span,
+  .entry-footer span {
+    padding: 5px 8px;
+  }
+
+  .entry-signal-field {
+    top: 76px;
+    width: 380px;
+  }
+
+  .signal-row {
+    padding: 7px 0;
+  }
+
+  .auth-actions button {
+    min-height: 56px;
+  }
+
+  .entry-footer {
+    right: 56px;
+    bottom: 22px;
+    left: 56px;
+    padding-top: 12px;
+  }
+}
+
+@media (max-height: 640px) and (min-width: 901px) {
+  .entry-tape {
+    display: none;
+  }
+
+  .auth-entry {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 40px;
+    padding: 24px 48px;
+  }
+
+  .entry-kernel {
+    margin-bottom: 12px;
+  }
+
+  .auth-entry h1 {
+    max-width: 680px;
+    font-size: 62px;
+    line-height: 0.88;
+  }
+
+  .auth-entry p:not(.micro-label) {
+    margin-top: 12px;
+    font-size: 12px;
+  }
+
+  .entry-status {
+    margin-top: 14px;
+  }
+
+  .entry-signal-field {
+    top: 62px;
+    width: 340px;
+    opacity: 0.36;
+  }
+
+  .signal-row {
+    padding: 5px 0;
+  }
+
+  .auth-actions button {
+    min-height: 50px;
+  }
+
+  .entry-footer {
+    bottom: 16px;
+    left: 48px;
+    right: 48px;
+  }
+}
+
 @media (max-width: 900px) {
   .terminal-shell {
     overflow: auto;
@@ -1184,14 +1311,15 @@ input[type="range"] {
   }
 
   .entry-shell {
-    overflow: auto;
+    overflow: hidden;
     place-items: start center;
     padding: 16px;
   }
 
   .auth-entry {
     width: 100%;
-    min-height: calc(100vh - 32px);
+    height: calc(100dvh - 32px);
+    min-height: 0;
     margin: 0;
     padding: 28px;
   }
