@@ -52,6 +52,14 @@ button {
   background-size: 100% 36px;
 }
 
+.entry-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: start center;
+  background: var(--bg);
+  padding: 6px;
+}
+
 .topbar {
   display: grid;
   grid-template-columns: 240px auto auto max-content;
@@ -435,6 +443,14 @@ input[type="range"] {
   padding: 24px;
 }
 
+.auth-entry {
+  width: min(100%, 680px);
+  max-width: 680px;
+  margin: 0;
+  padding: 18px 16px 28px;
+  background: #111318;
+}
+
 .auth-screen h1 {
   max-width: 680px;
   margin: 0;
@@ -443,16 +459,33 @@ input[type="range"] {
   letter-spacing: -0.02em;
 }
 
+.auth-entry h1 {
+  max-width: 430px;
+  font-size: clamp(34px, 5vw, 42px);
+  line-height: 0.95;
+}
+
 .auth-screen p:not(.micro-label) {
   max-width: 58ch;
   color: var(--muted);
   line-height: 1.6;
 }
 
+.auth-entry p:not(.micro-label) {
+  max-width: 360px;
+  margin: 14px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .auth-actions {
   display: grid;
   gap: 8px;
   align-content: start;
+}
+
+.auth-entry .auth-actions {
+  padding-top: 1px;
 }
 
 .auth-actions button {

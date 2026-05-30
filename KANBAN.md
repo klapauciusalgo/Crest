@@ -12,6 +12,7 @@
 - [x] Mock AI drawer streaming interaction built.
 - [x] Mock admin AI provider config built.
 - [x] First Vercel deployment created.
+- [x] Signed-out first page simplified to entry-only auth panel.
 
 ## In Progress
 

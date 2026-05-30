@@ -169,6 +169,10 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
     }, 18);
   }
 
+  if (isSignedOut) {
+    return <AuthEntry onAuth={setAuthMode} />;
+  }
+
   return (
     <main className="terminal-shell">
       <Header
@@ -259,33 +263,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
         </aside>
 
         <section className="workspace">
-          {isSignedOut && (
-            <div className="auth-screen">
-              <div>
-                <p className="micro-label">Crest Terminal</p>
-                <h1>Market structure, chain strength, and AI context in one dense workspace.</h1>
-                <p>
-                  Enter as a mock analyst to test the complete product journey before production auth and live data are connected.
-                </p>
-              </div>
-              <div className="auth-actions">
-                <button onClick={() => setAuthMode("user")}>
-                  <CircleUserRound size={16} />
-                  Continue with X mock
-                </button>
-                <button onClick={() => setAuthMode("user")}>
-                  <Wallet size={16} />
-                  Connect wallet mock
-                </button>
-                <button onClick={() => setAuthMode("admin")}>
-                  <Lock size={16} />
-                  Enter admin mock
-                </button>
-              </div>
-            </div>
-          )}
-
-          {!isSignedOut && view === "terminal" && (
+          {view === "terminal" && (
             <>
               <div className="workspace-toolbar">
                 <div>
@@ -311,20 +289,46 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
             </>
           )}
 
-          {!isSignedOut && view === "admin" && <AdminPanel />}
+          {view === "admin" && <AdminPanel />}
         </section>
       </section>
 
-      {!isSignedOut && (
-        <AiDrawer
-          open={aiOpen}
-          response={aiResponse}
-          pinned={pinned}
-          rows={filteredAssets}
-          onToggle={() => setAiOpen((current) => !current)}
-          onPreset={runAiPreset}
-        />
-      )}
+      <AiDrawer
+        open={aiOpen}
+        response={aiResponse}
+        pinned={pinned}
+        rows={filteredAssets}
+        onToggle={() => setAiOpen((current) => !current)}
+        onPreset={runAiPreset}
+      />
+    </main>
+  );
+}
+
+function AuthEntry({ onAuth }: { onAuth: (mode: AuthMode) => void }) {
+  return (
+    <main className="entry-shell">
+      <section className="auth-screen auth-entry" aria-label="Crest entry">
+        <div>
+          <p className="micro-label">Crest Terminal</p>
+          <h1>Market structure, chain strength, and AI context in one dense workspace.</h1>
+          <p>Enter as a mock analyst to test the complete product journey before production auth and live data are connected.</p>
+        </div>
+        <div className="auth-actions">
+          <button onClick={() => onAuth("user")}>
+            <CircleUserRound size={16} />
+            Continue with X mock
+          </button>
+          <button onClick={() => onAuth("user")}>
+            <Wallet size={16} />
+            Connect wallet mock
+          </button>
+          <button onClick={() => onAuth("admin")}>
+            <Lock size={16} />
+            Enter admin mock
+          </button>
+        </div>
+      </section>
     </main>
   );
 }
