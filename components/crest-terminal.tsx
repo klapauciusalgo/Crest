@@ -1,0 +1,733 @@
+"use client";
+
+import {
+  Activity,
+  Bot,
+  ChevronDown,
+  ChevronUp,
+  CircleUserRound,
+  Command,
+  Database,
+  Lock,
+  Pin,
+  Settings,
+  SlidersHorizontal,
+  Sparkles,
+  Wallet
+} from "lucide-react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import { formatPct, formatPrice } from "@/lib/formatters";
+import {
+  AssetRow,
+  ChainKey,
+  ProviderConfig,
+  Timeframe,
+  aiPresetResponses,
+  chainColors,
+  getChainSummaries,
+  getMockAssets,
+  providerConfigs
+} from "@/lib/mock-data";
+
+type ViewMode = "terminal" | "admin";
+type AuthMode = "visitor" | "user" | "admin";
+type SortKey = keyof Pick<
+  AssetRow,
+  "symbol" | "price" | "priceChange24h" | "rsi14" | "volumeChange24h" | "chain" | "ma111" | "maDistancePct"
+>;
+type SortDirection = "none" | "asc" | "desc";
+type SavedPreset = {
+  name: string;
+  chains: ChainKey[];
+  rsi: [number, number];
+  ma: [number, number];
+};
+
+const allChains = Object.keys(chainColors) as ChainKey[];
+
+const columns: Array<{ key: SortKey; label: string; align?: "right" | "left" }> = [
+  { key: "symbol", label: "Asset", align: "left" },
+  { key: "price", label: "Price" },
+  { key: "priceChange24h", label: "24h" },
+  { key: "rsi14", label: "RSI(14)" },
+  { key: "volumeChange24h", label: "Volume" },
+  { key: "chain", label: "Chain" },
+  { key: "ma111", label: "MA111" },
+  { key: "maDistancePct", label: "MA Dist." }
+];
+
+export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
+  const [authMode, setAuthMode] = useState<AuthMode>(initialView === "admin" ? "admin" : "visitor");
+  const [view, setView] = useState<ViewMode>(initialView);
+  const [timeframe, setTimeframe] = useState<Timeframe>("4h");
+  const [selectedChains, setSelectedChains] = useState<ChainKey[]>(allChains);
+  const [rsiRange, setRsiRange] = useState<[number, number]>([0, 100]);
+  const [maRange, setMaRange] = useState<[number, number]>([-20, 20]);
+  const [sortKey, setSortKey] = useState<SortKey>("priceChange24h");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [pinned, setPinned] = useState<string[]>(["BTC", "ETH"]);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiResponse, setAiResponse] = useState("");
+  const [highlightedTickers, setHighlightedTickers] = useState<string[]>([]);
+  const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([
+    { name: "BSC oversold", chains: ["BSC"], rsi: [0, 35], ma: [-20, 0] },
+    { name: "MA111 support", chains: allChains, rsi: [20, 55], ma: [-5, 1] }
+  ]);
+  const [activePreset, setActivePreset] = useState("Manual");
+
+  const sourceAssets = useMemo(() => getMockAssets(timeframe), [timeframe]);
+  const filteredAssets = useMemo(() => {
+    const rows = sourceAssets.filter(
+      (asset) =>
+        selectedChains.includes(asset.chain) &&
+        asset.rsi14 >= rsiRange[0] &&
+        asset.rsi14 <= rsiRange[1] &&
+        asset.maDistancePct >= maRange[0] &&
+        asset.maDistancePct <= maRange[1]
+    );
+
+    return sortRows(rows, sortKey, sortDirection);
+  }, [maRange, rsiRange, selectedChains, sortDirection, sortKey, sourceAssets]);
+
+  const chainSummaries = useMemo(() => getChainSummaries(sourceAssets), [sourceAssets]);
+  const visibleTickers = useMemo(() => filteredAssets.map((asset) => asset.symbol), [filteredAssets]);
+
+  useEffect(() => {
+    if (!aiResponse) {
+      setHighlightedTickers([]);
+      return;
+    }
+
+    const tickers = Array.from(aiResponse.matchAll(/\$([A-Z0-9]+)/g)).map((match) => match[1]);
+    setHighlightedTickers(tickers.filter((ticker) => visibleTickers.includes(ticker)));
+  }, [aiResponse, visibleTickers]);
+
+  const isSignedOut = authMode === "visitor";
+
+  function cycleSort(key: SortKey) {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDirection("asc");
+      return;
+    }
+
+    setSortDirection((current) => {
+      if (current === "none") return "asc";
+      if (current === "asc") return "desc";
+      return "none";
+    });
+  }
+
+  function toggleChain(chain: ChainKey) {
+    setActivePreset("Manual");
+    setSelectedChains((current) =>
+      current.includes(chain) ? current.filter((item) => item !== chain) : [...current, chain]
+    );
+  }
+
+  function togglePin(symbol: string) {
+    setPinned((current) => {
+      if (current.includes(symbol)) {
+        return current.filter((item) => item !== symbol);
+      }
+
+      if (current.length >= 5) {
+        return current;
+      }
+
+      return [...current, symbol];
+    });
+  }
+
+  function loadPreset(preset: SavedPreset) {
+    setSelectedChains(preset.chains);
+    setRsiRange(preset.rsi);
+    setMaRange(preset.ma);
+    setActivePreset(preset.name);
+  }
+
+  function savePreset() {
+    const nextName = `View ${savedPresets.length + 1}`;
+    setSavedPresets((current) => [
+      ...current,
+      { name: nextName, chains: selectedChains, rsi: rsiRange, ma: maRange }
+    ]);
+    setActivePreset(nextName);
+  }
+
+  function runAiPreset(kind: keyof typeof aiPresetResponses) {
+    setAiOpen(true);
+    setAiResponse("");
+    const response = aiPresetResponses[kind];
+    let index = 0;
+    const timer = window.setInterval(() => {
+      index += 4;
+      setAiResponse(response.slice(0, index));
+      if (index >= response.length) {
+        window.clearInterval(timer);
+      }
+    }, 18);
+  }
+
+  return (
+    <main className="terminal-shell">
+      <Header
+        authMode={authMode}
+        timeframe={timeframe}
+        view={view}
+        onAuth={setAuthMode}
+        onTimeframe={setTimeframe}
+        onView={setView}
+      />
+
+      <section className="terminal-body">
+        <aside className="left-rail" aria-label="Market filters">
+          <div className="rail-section rail-head">
+            <div>
+              <p className="micro-label">Filtered View</p>
+              <strong>{filteredAssets.length} assets</strong>
+            </div>
+            <span className="live-dot">Live mock</span>
+          </div>
+
+          <ChainHeatmap
+            summaries={chainSummaries}
+            selectedChains={selectedChains}
+            onSelect={(chain) => {
+              setSelectedChains([chain]);
+              setActivePreset(`${chain} drilldown`);
+            }}
+          />
+
+          <div className="rail-section">
+            <div className="section-title">
+              <SlidersHorizontal size={14} />
+              Chains
+            </div>
+            <div className="chain-actions">
+              <button onClick={() => setSelectedChains(allChains)}>All</button>
+              <button onClick={() => setSelectedChains([])}>None</button>
+            </div>
+            <div className="chain-filter-list">
+              {allChains.map((chain) => (
+                <button
+                  className={`chain-filter ${selectedChains.includes(chain) ? "active" : ""}`}
+                  key={chain}
+                  onClick={() => toggleChain(chain)}
+                  style={{ "--chain-color": chainColors[chain] } as CSSProperties}
+                >
+                  <span />
+                  {chain}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rail-section">
+            <div className="section-title">RSI range</div>
+            <RangeControl min={0} max={100} value={rsiRange} onChange={setRsiRange} />
+            <div className="preset-row">
+              <button onClick={() => setRsiRange([0, 35])}>Oversold</button>
+              <button onClick={() => setRsiRange([35, 70])}>Neutral</button>
+              <button onClick={() => setRsiRange([70, 100])}>Hot</button>
+            </div>
+          </div>
+
+          <div className="rail-section">
+            <div className="section-title">MA111 distance</div>
+            <RangeControl min={-20} max={20} value={maRange} onChange={setMaRange} suffix="%" />
+          </div>
+
+          <div className="rail-section">
+            <div className="section-title">Saved presets</div>
+            <div className="preset-list">
+              {savedPresets.map((preset) => (
+                <button
+                  className={activePreset === preset.name ? "active" : ""}
+                  key={preset.name}
+                  onClick={() => loadPreset(preset)}
+                >
+                  {preset.name}
+                  <ChevronDown size={13} />
+                </button>
+              ))}
+            </div>
+            <button className="save-preset" onClick={savePreset}>
+              Save current view
+            </button>
+          </div>
+        </aside>
+
+        <section className="workspace">
+          {isSignedOut && (
+            <div className="auth-screen">
+              <div>
+                <p className="micro-label">Crest Terminal</p>
+                <h1>Market structure, chain strength, and AI context in one dense workspace.</h1>
+                <p>
+                  Enter as a mock analyst to test the complete product journey before production auth and live data are connected.
+                </p>
+              </div>
+              <div className="auth-actions">
+                <button onClick={() => setAuthMode("user")}>
+                  <CircleUserRound size={16} />
+                  Continue with X mock
+                </button>
+                <button onClick={() => setAuthMode("user")}>
+                  <Wallet size={16} />
+                  Connect wallet mock
+                </button>
+                <button onClick={() => setAuthMode("admin")}>
+                  <Lock size={16} />
+                  Enter admin mock
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!isSignedOut && view === "terminal" && (
+            <>
+              <div className="workspace-toolbar">
+                <div>
+                  <p className="micro-label">Market Grid</p>
+                  <h2>Top assets by current filtered context</h2>
+                </div>
+                <div className="toolbar-stats">
+                  <Metric label="Pinned" value={`${pinned.length}/5`} />
+                  <Metric label="Preset" value={activePreset} />
+                  <Metric label="Rows" value={String(filteredAssets.length)} />
+                </div>
+              </div>
+
+              <AssetGrid
+                rows={filteredAssets}
+                sortKey={sortKey}
+                sortDirection={sortDirection}
+                pinned={pinned}
+                highlightedTickers={highlightedTickers}
+                onSort={cycleSort}
+                onPin={togglePin}
+              />
+            </>
+          )}
+
+          {!isSignedOut && view === "admin" && <AdminPanel />}
+        </section>
+      </section>
+
+      {!isSignedOut && (
+        <AiDrawer
+          open={aiOpen}
+          response={aiResponse}
+          pinned={pinned}
+          rows={filteredAssets}
+          onToggle={() => setAiOpen((current) => !current)}
+          onPreset={runAiPreset}
+        />
+      )}
+    </main>
+  );
+}
+
+function Header({
+  authMode,
+  timeframe,
+  view,
+  onAuth,
+  onTimeframe,
+  onView
+}: {
+  authMode: AuthMode;
+  timeframe: Timeframe;
+  view: ViewMode;
+  onAuth: (mode: AuthMode) => void;
+  onTimeframe: (timeframe: Timeframe) => void;
+  onView: (view: ViewMode) => void;
+}) {
+  return (
+    <header className="topbar">
+      <button className="brand" onClick={() => onView("terminal")} aria-label="Open terminal">
+        <span className="brand-mark">C</span>
+        <span>Crest</span>
+      </button>
+      <nav className="topbar-nav" aria-label="Primary views">
+        <button className={view === "terminal" ? "active" : ""} onClick={() => onView("terminal")}>
+          <Command size={14} />
+          Terminal
+        </button>
+        <button className={view === "admin" ? "active" : ""} onClick={() => onView("admin")}>
+          <Settings size={14} />
+          AI config
+        </button>
+      </nav>
+      <div className="timeframe-toggle" aria-label="Timeframe">
+        {(["30m", "4h"] as Timeframe[]).map((item) => (
+          <button className={timeframe === item ? "active" : ""} key={item} onClick={() => onTimeframe(item)}>
+            {item}
+          </button>
+        ))}
+      </div>
+      <button className="auth-chip" onClick={() => onAuth(authMode === "visitor" ? "user" : "visitor")}>
+        <span className={`session-dot ${authMode}`} />
+        {authMode === "visitor" ? "Signed out" : authMode === "admin" ? "Admin mock" : "Analyst mock"}
+      </button>
+    </header>
+  );
+}
+
+function ChainHeatmap({
+  summaries,
+  selectedChains,
+  onSelect
+}: {
+  summaries: ReturnType<typeof getChainSummaries>;
+  selectedChains: ChainKey[];
+  onSelect: (chain: ChainKey) => void;
+}) {
+  return (
+    <div className="rail-section heatmap-card">
+      <div className="section-title">
+        <Activity size={14} />
+        Chain heatmap
+      </div>
+      <svg className="heatmap-chart" viewBox="0 0 220 150" role="img" aria-label="Chain performance heatmap">
+        <line x1="20" y1="118" x2="205" y2="118" />
+        <line x1="32" y1="18" x2="32" y2="132" />
+        {summaries.map((summary, index) => {
+          const x = 40 + ((summary.avgPriceChange + 7) / 14) * 155;
+          const y = 122 - Math.min(100, summary.avgVolumeChange) * 0.9;
+          const radius = 15 + summary.assetCount * 4;
+          const positive = summary.avgPriceChange >= 0;
+          return (
+            <g
+              className={`heat-bubble ${selectedChains.includes(summary.chain) ? "active" : ""}`}
+              key={summary.chain}
+              onClick={() => onSelect(summary.chain)}
+              tabIndex={0}
+              style={{ "--delay": `${index * 18}ms` } as React.CSSProperties}
+            >
+              <circle
+                cx={x}
+                cy={y}
+                r={radius}
+                fill={positive ? "rgba(29,184,126,.28)" : "rgba(229,72,77,.25)"}
+                stroke={positive ? "#1DB87E" : "#E5484D"}
+              />
+              <text x={x} y={y - 2} textAnchor="middle">
+                {summary.chain}
+              </text>
+              <text x={x} y={y + 12} textAnchor="middle" className="heat-value">
+                {formatPct(summary.avgPriceChange)}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function RangeControl({
+  min,
+  max,
+  value,
+  suffix = "",
+  onChange
+}: {
+  min: number;
+  max: number;
+  value: [number, number];
+  suffix?: string;
+  onChange: (value: [number, number]) => void;
+}) {
+  return (
+    <div className="range-control">
+      <div className="range-values">
+        <span>
+          {value[0]}
+          {suffix}
+        </span>
+        <span>
+          {value[1]}
+          {suffix}
+        </span>
+      </div>
+      <input
+        min={min}
+        max={max}
+        suppressHydrationWarning
+        type="range"
+        value={value[0]}
+        onChange={(event) => onChange([Math.min(Number(event.target.value), value[1]), value[1]])}
+      />
+      <input
+        min={min}
+        max={max}
+        suppressHydrationWarning
+        type="range"
+        value={value[1]}
+        onChange={(event) => onChange([value[0], Math.max(Number(event.target.value), value[0])])}
+      />
+    </div>
+  );
+}
+
+function AssetGrid({
+  rows,
+  sortKey,
+  sortDirection,
+  pinned,
+  highlightedTickers,
+  onSort,
+  onPin
+}: {
+  rows: AssetRow[];
+  sortKey: SortKey;
+  sortDirection: SortDirection;
+  pinned: string[];
+  highlightedTickers: string[];
+  onSort: (key: SortKey) => void;
+  onPin: (symbol: string) => void;
+}) {
+  return (
+    <div className="grid-shell">
+      <table className="asset-grid">
+        <thead>
+          <tr>
+            <th aria-label="Pinned assets" />
+            {columns.map((column) => (
+              <th className={column.align === "left" ? "left" : ""} key={column.key}>
+                <button onClick={() => onSort(column.key)}>
+                  {column.label}
+                  <span>{sortKey === column.key ? sortGlyph(sortDirection) : ""}</span>
+                </button>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((asset) => {
+            const isPinned = pinned.includes(asset.symbol);
+            const isHighlighted = highlightedTickers.includes(asset.symbol);
+            return (
+              <tr className={`${isPinned ? "pinned" : ""} ${isHighlighted ? "highlight" : ""}`} key={asset.symbol}>
+                <td>
+                  <button className={`pin-button ${isPinned ? "active" : ""}`} onClick={() => onPin(asset.symbol)}>
+                    <Pin size={13} />
+                  </button>
+                </td>
+                <td className="asset-cell">
+                  <strong>${asset.symbol}</strong>
+                  <span>{asset.name}</span>
+                </td>
+                <td>{formatPrice(asset.price)}</td>
+                <td className={asset.priceChange24h >= 0 ? "positive" : "negative"}>{formatPct(asset.priceChange24h)}</td>
+                <td>
+                  <RsiGauge value={asset.rsi14} />
+                </td>
+                <td className={asset.volumeChange24h >= 0 ? "positive" : "negative"}>{formatPct(asset.volumeChange24h)}</td>
+                <td>
+                  <span className="chain-badge" style={{ "--chain-color": chainColors[asset.chain] } as CSSProperties}>
+                    {asset.chain}
+                  </span>
+                </td>
+                <td>{formatPrice(asset.ma111)}</td>
+                <td className={asset.maDistancePct >= 0 ? "positive" : "negative"}>{formatPct(asset.maDistancePct)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function RsiGauge({ value }: { value: number }) {
+  const filled = Math.round((value / 100) * 7);
+  const zone = value < 30 ? "oversold" : value > 70 ? "overbought" : "neutral";
+  return (
+    <span className={`rsi-gauge ${zone}`}>
+      <span aria-hidden="true">
+        {Array.from({ length: 7 }).map((_, index) => (
+          <i className={index < filled ? "filled" : ""} key={index} />
+        ))}
+      </span>
+      <b>{value.toFixed(1)}</b>
+    </span>
+  );
+}
+
+function AiDrawer({
+  open,
+  response,
+  pinned,
+  rows,
+  onToggle,
+  onPreset
+}: {
+  open: boolean;
+  response: string;
+  pinned: string[];
+  rows: AssetRow[];
+  onToggle: () => void;
+  onPreset: (kind: keyof typeof aiPresetResponses) => void;
+}) {
+  return (
+    <section className={`ai-drawer ${open ? "open" : ""}`}>
+      <button className="ai-collapsed" onClick={onToggle}>
+        <Bot size={15} />
+        Ask about current data
+        {open ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+      </button>
+      {open && (
+        <div className="ai-panel">
+          <div className="ai-context">
+            <span>{rows.length} visible rows</span>
+            <span>{pinned.map((symbol) => `$${symbol}`).join(" ") || "No pins"}</span>
+          </div>
+          <div className="ai-presets">
+            <button onClick={() => onPreset("oversold")}>Oversold opportunities</button>
+            <button onClick={() => onPreset("chains")}>Chain strength ranking</button>
+            <button onClick={() => onPreset("volume")}>Volume anomalies</button>
+            <button onClick={() => onPreset("ma")}>MA111 breakdown watch</button>
+          </div>
+          <pre className="ai-response">
+            {response || "Select a preset prompt to stream a mock analyst response."}
+            {response && <span className="cursor">_</span>}
+          </pre>
+          <div className="ai-input">
+            <span>&gt;</span>
+            <input placeholder="e.g. which BSC tokens are oversold?" />
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AdminPanel() {
+  const [configs, setConfigs] = useState(providerConfigs);
+
+  return (
+    <section className="admin-panel">
+      <div className="workspace-toolbar">
+        <div>
+          <p className="micro-label">Admin</p>
+          <h2>AI provider configuration</h2>
+        </div>
+        <div className="toolbar-stats">
+          <Metric label="Primary" value={configs.find((config) => config.status === "primary")?.provider || "None"} />
+          <Metric label="Enabled" value={String(configs.filter((config) => config.status !== "disabled").length)} />
+        </div>
+      </div>
+
+      <div className="provider-grid">
+        {configs.map((config, index) => (
+          <article className="provider-row" key={config.provider}>
+            <div>
+              <span className={`provider-status ${config.status}`} />
+              <strong>{config.provider}</strong>
+              <span>{config.model}</span>
+            </div>
+            <label>
+              Max tokens
+              <input
+                value={config.maxTokens}
+                type="number"
+                onChange={(event) =>
+                  setConfigs((current) =>
+                    current.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, maxTokens: Number(event.target.value) } : item
+                    )
+                  )
+                }
+              />
+            </label>
+            <label>
+              Temp
+              <input
+                value={config.temperature}
+                step="0.05"
+                type="number"
+                onChange={(event) =>
+                  setConfigs((current) =>
+                    current.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, temperature: Number(event.target.value) } : item
+                    )
+                  )
+                }
+              />
+            </label>
+            <label>
+              Daily limit
+              <input
+                value={config.dailyLimit}
+                type="number"
+                onChange={(event) =>
+                  setConfigs((current) =>
+                    current.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, dailyLimit: Number(event.target.value) } : item
+                    )
+                  )
+                }
+              />
+            </label>
+            <select
+              value={config.status}
+              onChange={(event) =>
+                setConfigs((current) =>
+                  current.map((item, itemIndex) =>
+                    itemIndex === index ? { ...item, status: event.target.value as ProviderConfig["status"] } : item
+                  )
+                )
+              }
+            >
+              <option value="primary">Primary</option>
+              <option value="fallback">Fallback</option>
+              <option value="disabled">Disabled</option>
+            </select>
+          </article>
+        ))}
+      </div>
+
+      <div className="admin-footer">
+        <div>
+          <Database size={15} />
+          Mock save state, Supabase persistence pending.
+        </div>
+        <button>
+          <Sparkles size={15} />
+          Save mock config
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function sortRows(rows: AssetRow[], key: SortKey, direction: SortDirection) {
+  if (direction === "none") {
+    return rows;
+  }
+
+  return [...rows].sort((a, b) => {
+    const first = a[key];
+    const second = b[key];
+    const result = typeof first === "string" ? String(first).localeCompare(String(second)) : Number(first) - Number(second);
+    return direction === "asc" ? result : -result;
+  });
+}
+
+function sortGlyph(direction: SortDirection) {
+  if (direction === "asc") return "↑";
+  if (direction === "desc") return "↓";
+  return "";
+}
