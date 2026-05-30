@@ -13,6 +13,7 @@
 - [x] Mock admin AI provider config built.
 - [x] First Vercel deployment created.
 - [x] Signed-out first page simplified to entry-only auth panel.
+- [x] Signed-out entry screen upgraded with animated terminal signal layer.
 
 ## In Progress
 

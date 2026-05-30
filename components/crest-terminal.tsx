@@ -44,6 +44,14 @@ type SavedPreset = {
 };
 
 const allChains = Object.keys(chainColors) as ChainKey[];
+const entrySignals = [
+  ["$BTC", "+1.48", "RSI 61.4"],
+  ["$SOL", "+2.80", "VOL 44.1"],
+  ["$ARB", "-4.84", "MA -8.5"],
+  ["$AERO", "+7.59", "BASE"],
+  ["$BNB", "-1.84", "RSI 28.6"],
+  ["$TON", "+5.41", "HOT"]
+];
 
 const columns: Array<{ key: SortKey; label: string; align?: "right" | "left" }> = [
   { key: "symbol", label: "Asset", align: "left" },
@@ -308,11 +316,46 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
 function AuthEntry({ onAuth }: { onAuth: (mode: AuthMode) => void }) {
   return (
     <main className="entry-shell">
+      <div className="entry-tape" aria-hidden="true">
+        <div>
+          <span>$BTC +1.48</span>
+          <span>$ETH -0.64</span>
+          <span>$SOL +2.80</span>
+          <span>$ARB -4.84</span>
+          <span>$AERO +7.59</span>
+          <span>$TON +5.41</span>
+          <span>$GMX -5.36</span>
+          <span>$AVAX +2.62</span>
+        </div>
+        <div>
+          <span>$BTC +1.48</span>
+          <span>$ETH -0.64</span>
+          <span>$SOL +2.80</span>
+          <span>$ARB -4.84</span>
+          <span>$AERO +7.59</span>
+          <span>$TON +5.41</span>
+          <span>$GMX -5.36</span>
+          <span>$AVAX +2.62</span>
+        </div>
+      </div>
       <section className="auth-screen auth-entry" aria-label="Crest entry">
+        <div className="entry-signal-field" aria-hidden="true">
+          {entrySignals.map((signal, index) => (
+            <div className="signal-row" key={`${signal[0]}-${index}`} style={{ "--signal-index": index } as CSSProperties}>
+              <span>{signal[0]}</span>
+              <span>{signal[1]}%</span>
+              <span>{signal[2]}</span>
+            </div>
+          ))}
+        </div>
         <div className="entry-copy">
           <div className="entry-brand">
             <span className="brand-mark">C</span>
             <span>Crest Terminal</span>
+          </div>
+          <div className="entry-kernel" aria-hidden="true">
+            <span />
+            <span>Context engine armed</span>
           </div>
           <h1>Market structure, chain strength, and AI context in one dense workspace.</h1>
           <p>Enter as a mock analyst to test the complete product journey before production auth and live data are connected.</p>
@@ -326,15 +369,24 @@ function AuthEntry({ onAuth }: { onAuth: (mode: AuthMode) => void }) {
           <p className="micro-label">Access</p>
           <button onClick={() => onAuth("user")}>
             <CircleUserRound size={16} />
-            Continue with X mock
+            <span>
+              Continue with X mock
+              <small>OAuth route simulation</small>
+            </span>
           </button>
           <button onClick={() => onAuth("user")}>
             <Wallet size={16} />
-            Connect wallet mock
+            <span>
+              Connect wallet mock
+              <small>SIWE journey preview</small>
+            </span>
           </button>
           <button onClick={() => onAuth("admin")}>
             <Lock size={16} />
-            Enter admin mock
+            <span>
+              Enter admin mock
+              <small>Provider controls</small>
+            </span>
           </button>
         </div>
         <div className="entry-footer">
@@ -747,11 +799,5 @@ function sortRows(rows: AssetRow[], key: SortKey, direction: SortDirection) {
 function sortGlyphAscii(direction: SortDirection) {
   if (direction === "asc") return "^";
   if (direction === "desc") return "v";
-  return "";
-}
-
-function sortGlyph(direction: SortDirection) {
-  if (direction === "asc") return "↑";
-  if (direction === "desc") return "↓";
   return "";
 }
