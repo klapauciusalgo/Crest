@@ -157,6 +157,30 @@ Requirements:
 - Configure per-user AI request daily limit.
 - Configure custom platform AI system prompt.
 
+### 2.8 Clickable End-To-End Product Journey
+
+Before integrating live market data, Supabase persistence, AI providers, or wallet/OAuth production auth, Crest should start with a clickable end-to-end interface prototype.
+
+The prototype should be real frontend code, not a static design mock. It should use deterministic mock data and simulate the complete user journey:
+
+- Enter the terminal as a signed-out visitor.
+- Sign in through mocked X or wallet controls.
+- Land on the main Crest terminal with populated market data.
+- Switch timeframe between `30m` and `4h`.
+- Filter by chain, RSI range, and MA111 distance.
+- Sort the asset grid by primary and secondary columns.
+- Click a chain bubble to filter the grid.
+- Pin and unpin assets.
+- Open the AI drawer.
+- Select preset prompts.
+- Stream a mock AI response.
+- Highlight mentioned ticker rows in the grid.
+- Save and load a filter preset.
+- Navigate to `/admin/ai-config` as a mocked admin user.
+- Configure mock AI provider priority and rate limits.
+
+This phase should prove the product shape, information hierarchy, interaction model, and visual language before backend complexity is introduced.
+
 ## 3. Recommended Architecture
 
 ### 3.1 Repository And Platform Layout
@@ -321,6 +345,34 @@ flowchart LR
 - Pinned assets are stored per user in Supabase Postgres and mirrored locally.
 - AI stream updates the drawer progressively through SSE.
 - Ticker parsing from streamed AI text triggers row highlight events.
+
+### 3.6 Prototype-First Architecture
+
+The first implementation should be a Vercel-ready Next.js frontend with a mock data layer that mirrors the final API contracts. This keeps the interface clickable while preserving a clean path to Supabase and live providers.
+
+Prototype modules:
+
+```text
+lib/mock/
+  assets.ts
+  chains.ts
+  ai-responses.ts
+  users.ts
+
+lib/contracts/
+  market.ts
+  filters.ts
+  ai.ts
+  admin.ts
+```
+
+Rules:
+
+- Mock data must use the same TypeScript types as future Supabase/API data.
+- UI components should never know whether data came from mocks, Supabase, or route handlers.
+- Mock auth should expose the same role states needed by the app: signed out, user, admin.
+- Mock AI streaming should use the same client event shape as the future SSE route.
+- Prototype routes and stores should be replaced by adapters, not rewritten.
 
 ## 4. Database Plan
 
@@ -607,6 +659,51 @@ Bottom drawer
 - `AiDrawer`: collapsed and expanded terminal chat states.
 - `AdminAiConfigForm`: provider management and fallback priority.
 
+### 7.4 Clickable Journey Screens
+
+The initial clickable UI should include these product states:
+
+1. **Signed-out terminal preview**
+   - Shows the terminal shell with masked or sample market data.
+   - Provides X and wallet sign-in entry points.
+   - Avoids landing-page marketing treatment.
+
+2. **Main analyst terminal**
+   - Header, left filter rail, virtualized grid, chain heatmap summary, bottom AI drawer.
+   - Uses mock market rows for all required columns.
+   - Supports timeframe switching, filtering, sorting, row hover, and pinned assets.
+
+3. **Expanded chain heatmap**
+   - Custom SVG bubble view.
+   - Tooltip and click-to-filter behavior.
+   - Immediate return path to the main grid.
+
+4. **AI assistant drawer**
+   - Collapsed and expanded states.
+   - Preset prompt pills.
+   - Mock streaming response with cursor blink.
+   - Ticker row highlight animation when mock response mentions assets.
+
+5. **Saved preset flow**
+   - Save current filters.
+   - Load a saved preset.
+   - Rename/delete affordances if low-cost in the first prototype.
+
+6. **Admin AI config**
+   - Provider list.
+   - Provider detail editor.
+   - Fallback priority ordering.
+   - Rate limit controls.
+   - Mock save state.
+
+Prototype acceptance criteria:
+
+- A reviewer can click through the full analyst journey without reading instructions.
+- Every major future backend capability has a visible UI affordance.
+- Mock data behaves realistically enough to test sorting, filtering, heatmap grouping, and AI context behavior.
+- Mobile and desktop layouts are usable, even if the terminal experience is optimized for desktop.
+- The UI stays faithful to the terminal visual language: dense, dark, data-first, and restrained.
+
 ## 8. AI Provider Architecture
 
 ### 8.1 Provider Interface
@@ -755,14 +852,64 @@ Deliverables:
 - Environment variable templates.
 - Basic Next.js app with health endpoint and terminal shell.
 - Shared schema definitions.
+- Mock data contracts for market rows, chain summaries, filters, AI messages, and admin provider configs.
 - CI checks for linting, formatting, type checks, and tests.
 
 Exit criteria:
 
 - Local developer can run the Next.js app and connect to Supabase with documented commands.
+- Local developer can run the app without Supabase credentials by using mock mode.
 - Health checks pass.
 
-### Phase 1: Market Data And Indicators
+### Phase 1: Clickable End-To-End UI Prototype
+
+Deliverables:
+
+- Signed-out terminal preview.
+- Mock auth states for visitor, user, and admin.
+- Main analyst terminal with populated mock market data.
+- Header with timeframe segmented control.
+- Left filter rail.
+- Virtualized asset grid.
+- RSI micro gauge.
+- Chain labels.
+- MA111 distance cell.
+- Primary and secondary sorting.
+- Chain heatmap with click-to-filter behavior.
+- Bottom AI drawer with mock streaming response.
+- Preset prompt flow.
+- Ticker row highlighting from AI responses.
+- Pin/unpin asset behavior.
+- Save/load filter preset behavior in local mock state.
+- `/admin/ai-config` clickable admin flow with mock provider settings.
+- Desktop and mobile responsive pass.
+
+Exit criteria:
+
+- A reviewer can complete the core Crest journey from sign-in to filtered analysis to AI question to admin config using only mock data.
+- UI interactions feel native and responsive.
+- Prototype screens use the same data contracts planned for production integrations.
+- The terminal visual language is validated before backend buildout.
+
+### Phase 2: Frontend Architecture And Design Hardening
+
+Deliverables:
+
+- Component extraction from prototype into stable modules.
+- Typed data adapters for mock, route-handler, and Supabase-backed data sources.
+- Zustand store cleanup for market, filter, AI, session, and admin state.
+- Accessibility pass for keyboard navigation, focus states, contrast, and reduced motion.
+- Responsive layout hardening.
+- Playwright smoke tests for the clickable journey.
+- Visual QA screenshots for key desktop and mobile states.
+
+Exit criteria:
+
+- Prototype quality is high enough to become the production frontend foundation.
+- Replacing mock adapters with real data does not require component rewrites.
+- End-to-end smoke tests cover the main journey.
+
+### Phase 3: Market Data And Indicators
 
 Deliverables:
 
@@ -773,46 +920,15 @@ Deliverables:
 - RSI(14), MA111, deltas, and MA distance computation.
 - Supabase snapshot freshness/update logic.
 - Supabase Realtime market snapshot stream.
-
-Exit criteria:
-
-- Frontend can receive live or mocked market snapshots for both timeframes.
-- Indicator tests pass against known fixtures.
-
-### Phase 2: Terminal UI Core
-
-Deliverables:
-
-- Header with timeframe segmented control.
-- Left filter rail.
-- Virtualized asset grid.
-- RSI micro gauge.
-- Chain labels.
-- MA111 distance cell.
-- Primary and secondary sorting.
-- Responsive terminal layout.
-
-Exit criteria:
-
-- 300-row data set renders smoothly.
-- Sort and filters work with mocked and live data.
-- UI matches the documented terminal visual language.
-
-### Phase 3: Chain Heatmap
-
-Deliverables:
-
 - Chain summary backend aggregation.
 - Five-minute chain summary refresh.
-- Custom SVG bubble heatmap.
-- Tooltip.
-- Bubble click-to-filter behavior.
-- Heatmap/grid view toggle if needed.
 
 Exit criteria:
 
+- Frontend can switch from mock snapshots to live or staged Supabase snapshots for both timeframes.
+- Indicator tests pass against known fixtures.
 - Chain metrics match backend aggregation tests.
-- Clicking a chain bubble updates the filtered grid.
+- Existing grid and heatmap UI work without structural changes.
 
 ### Phase 4: Authentication And User State
 
@@ -886,18 +1002,18 @@ Exit criteria:
 
 ## 13. Suggested Implementation Order
 
-1. Lock product name, provider choice, and deployment target.
-2. Scaffold Next.js, Vercel, and Supabase foundation.
-3. Define shared market, chain, filter, and AI context schemas.
-4. Build mocked data stream before integrating paid upstream APIs.
-5. Implement terminal UI against mocked data.
-6. Add real market ingestion and indicator computation.
-7. Add auth and persisted user state.
-8. Add AI context builder and streaming responses.
-9. Add admin provider configuration.
-10. Harden, test, deploy, and monitor.
+1. Lock product name, repository, Vercel target, and Supabase target.
+2. Scaffold the Next.js app with Vercel-ready structure and mock mode.
+3. Define shared market, chain, filter, AI, auth, and admin config schemas.
+4. Build the clickable end-to-end Crest journey with deterministic mock data.
+5. Validate the journey through browser testing and visual review.
+6. Harden the frontend architecture so mock adapters can be replaced cleanly.
+7. Add Supabase schema, RLS policies, auth, and persisted user state.
+8. Add real market ingestion, indicator computation, and Supabase Realtime.
+9. Add AI context builder, SSE streaming, provider fallback, and admin configuration.
+10. Harden, test, deploy, monitor, and iterate from user feedback.
 
-This order lets the terminal experience be validated early while backend data integrations mature behind stable contracts.
+This order validates Crest as a real product experience early. Backend integrations then land behind contracts the interface has already proven.
 
 ## 14. Open Decisions
 
@@ -926,6 +1042,7 @@ This order lets the terminal experience be validated early while backend data in
 
 The practical MVP should include:
 
+- Clickable end-to-end UI journey using deterministic mock data.
 - Mock and real market data source behind the same provider interface.
 - Top 300 asset grid.
 - `30m` and `4h` timeframe support.
