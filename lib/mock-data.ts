@@ -16,7 +16,21 @@ export type AssetRow = {
   maDistancePct: number;
 };
 
-export type ChainProjectDetail = AssetRow & {
+export type Regime4h = "Bullish" | "Bearish" | "Neutral";
+export type TradeRecommendation30m = "Long/Buy" | "Short/Sell" | "Wait";
+
+export type AssetSignalRow = AssetRow & {
+  regime4h: Regime4h;
+  recommendation30m: TradeRecommendation30m;
+  price4h: number;
+  ma1114h: number;
+  maDistance4hPct: number;
+  rsi4h: number;
+  rsi30m: number;
+  signalReason: string;
+};
+
+export type ChainProjectDetail = AssetSignalRow & {
   category: SectorKey;
   signal: "Momentum" | "Oversold" | "Support" | "Divergence" | "Neutral";
   note: string;
@@ -77,15 +91,67 @@ const baseAssets: AssetRow[] = [
   { symbol: "OKB", name: "OKB", price: 51.84, priceChange24h: 1.36, rsi14: 52.1, volumeChange24h: 8.8, chain: "ETH", sectors: ["CEX"], ma111: 49.6, maDistancePct: 4.52 }
 ];
 
+const thirtyMinuteRsiOverrides: Record<string, number> = {
+  BTC: 32.6,
+  AVAX: 34.1,
+  ARB: 73.8,
+  BNB: 72.4,
+  PENDLE: 71.2
+};
+
 export function getMockAssets(timeframe: Timeframe): AssetRow[] {
   const factor = timeframe === "30m" ? 0.58 : 1;
-  return baseAssets.map((asset, index) => ({
-    ...asset,
-    priceChange24h: round(asset.priceChange24h * factor + ((index % 3) - 1) * 0.34),
-    volumeChange24h: round(asset.volumeChange24h * (timeframe === "30m" ? 1.18 : 1)),
-    rsi14: clamp(round(asset.rsi14 + (timeframe === "30m" ? ((index % 4) - 1.5) * 2.1 : 0)), 0, 100),
-    maDistancePct: round(asset.maDistancePct * (timeframe === "30m" ? 0.74 : 1))
-  }));
+  return baseAssets.map((asset, index) => {
+    const generatedRsi = clamp(round(asset.rsi14 + (timeframe === "30m" ? ((index % 4) - 1.5) * 2.1 : 0)), 0, 100);
+
+    return {
+      ...asset,
+      priceChange24h: round(asset.priceChange24h * factor + ((index % 3) - 1) * 0.34),
+      volumeChange24h: round(asset.volumeChange24h * (timeframe === "30m" ? 1.18 : 1)),
+      rsi14: timeframe === "30m" ? thirtyMinuteRsiOverrides[asset.symbol] || generatedRsi : generatedRsi,
+      maDistancePct: round(asset.maDistancePct * (timeframe === "30m" ? 0.74 : 1))
+    };
+  });
+}
+
+export function enrichAssetsWithSignals(
+  activeAssets: AssetRow[],
+  assets4h: AssetRow[],
+  assets30m: AssetRow[]
+): AssetSignalRow[] {
+  const assets4hBySymbol = new Map(assets4h.map((asset) => [asset.symbol, asset]));
+  const assets30mBySymbol = new Map(assets30m.map((asset) => [asset.symbol, asset]));
+
+  return activeAssets.map((asset) => {
+    const asset4h = assets4hBySymbol.get(asset.symbol) || asset;
+    const asset30m = assets30mBySymbol.get(asset.symbol) || asset;
+    const regime4h = getRegime4h(asset4h);
+    const recommendation30m = getRecommendation30m(asset30m, regime4h);
+
+    return {
+      ...asset,
+      regime4h,
+      recommendation30m,
+      price4h: asset4h.price,
+      ma1114h: asset4h.ma111,
+      maDistance4hPct: asset4h.maDistancePct,
+      rsi4h: asset4h.rsi14,
+      rsi30m: asset30m.rsi14,
+      signalReason: getSignalReason(asset4h, asset30m, regime4h, recommendation30m)
+    };
+  });
+}
+
+export function getRegime4h(asset: AssetRow): Regime4h {
+  if (asset.price > asset.ma111 && asset.rsi14 > 55) return "Bullish";
+  if (asset.price < asset.ma111 && asset.rsi14 < 50) return "Bearish";
+  return "Neutral";
+}
+
+export function getRecommendation30m(asset30m: AssetRow, regime4h: Regime4h): TradeRecommendation30m {
+  if (regime4h === "Bullish" && asset30m.rsi14 < 35) return "Long/Buy";
+  if (regime4h === "Bearish" && asset30m.rsi14 > 70) return "Short/Sell";
+  return "Wait";
 }
 
 export function getChainSummaries(assets: AssetRow[]) {
@@ -170,7 +236,7 @@ const projectNotes: Record<string, string> = {
   WIF: "High-volume meme risk, deeply extended below MA111."
 };
 
-export function getChainProjectDetails(chain: ChainKey, assets: AssetRow[]): ChainProjectDetail[] {
+export function getChainProjectDetails(chain: ChainKey, assets: AssetSignalRow[]): ChainProjectDetail[] {
   return assets
     .filter((asset) => asset.chain === chain)
     .map((asset) => ({
@@ -182,7 +248,7 @@ export function getChainProjectDetails(chain: ChainKey, assets: AssetRow[]): Cha
     .sort((first, second) => second.volumeChange24h - first.volumeChange24h);
 }
 
-export function getSectorProjectDetails(sector: SectorKey, assets: AssetRow[]): ChainProjectDetail[] {
+export function getSectorProjectDetails(sector: SectorKey, assets: AssetSignalRow[]): ChainProjectDetail[] {
   return assets
     .filter((asset) => asset.sectors.includes(sector))
     .map((asset) => ({
@@ -202,7 +268,9 @@ export const aiPresetResponses: Record<string, string> = {
   volume:
     "$WIF, $AERO, $ARB, and $CAKE show volume divergence. Volume is elevated while price action is either muted or negative, which makes them worth monitoring for continuation or exhaustion.\n\n> **Next:** \"rank these by RSI from lowest to highest\"",
   ma:
-    "$CAKE, $PENDLE, and $ETH are near MA111 support. $CAKE is closest to the -5.00% breakdown band and has the strongest volume confirmation.\n\n> **Next:** \"which MA111 support names have RSI below 40?\""
+    "$CAKE, $PENDLE, and $ETH are near MA111 support. $CAKE is closest to the -5.00% breakdown band and has the strongest volume confirmation.\n\n> **Next:** \"which MA111 support names have RSI below 40?\"",
+  setup:
+    "Use the 4h regime first, then the 30m trigger. Long/Buy only appears when the 4h regime is bullish and 30m RSI is below 35. Short/Sell only appears when the 4h regime is bearish and 30m RSI is above 70.\n\n> **Next:** \"show actionable 30m setups by chain\""
 };
 
 export const providerConfigs: ProviderConfig[] = [
@@ -222,6 +290,37 @@ function round(value: number) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function getSignalReason(
+  asset4h: AssetRow,
+  asset30m: AssetRow,
+  regime4h: Regime4h,
+  recommendation30m: TradeRecommendation30m
+) {
+  if (recommendation30m === "Long/Buy") {
+    return `4h bullish; 30m RSI ${asset30m.rsi14.toFixed(1)} is below the 35 long trigger.`;
+  }
+
+  if (recommendation30m === "Short/Sell") {
+    return `4h bearish; 30m RSI ${asset30m.rsi14.toFixed(1)} is above the 70 short trigger.`;
+  }
+
+  if (regime4h === "Bullish") {
+    return `4h bullish; waiting for 30m RSI below 35.`;
+  }
+
+  if (regime4h === "Bearish") {
+    return `4h bearish; waiting for 30m RSI above 70.`;
+  }
+
+  return `4h neutral; price ${formatSignalPrice(asset4h.price)} vs MA111 ${formatSignalPrice(asset4h.ma111)}, RSI ${asset4h.rsi14.toFixed(1)}.`;
+}
+
+function formatSignalPrice(value: number) {
+  if (value >= 100) return value.toFixed(2);
+  if (value >= 1) return value.toFixed(2);
+  return value.toFixed(4);
 }
 
 function getSignal(asset: AssetRow): ChainProjectDetail["signal"] {

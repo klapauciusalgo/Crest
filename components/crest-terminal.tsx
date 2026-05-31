@@ -18,7 +18,7 @@ import {
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { formatPct, formatPrice } from "@/lib/formatters";
 import {
-  AssetRow,
+  AssetSignalRow,
   ChainKey,
   ChainProjectDetail,
   ProviderConfig,
@@ -26,6 +26,7 @@ import {
   Timeframe,
   aiPresetResponses,
   chainColors,
+  enrichAssetsWithSignals,
   getChainProjectDetails,
   getChainSummaries,
   getMockAssets,
@@ -38,11 +39,21 @@ import {
 type ViewMode = "terminal" | "admin";
 type AuthMode = "visitor" | "user" | "admin";
 type SortKey = keyof Pick<
-  AssetRow,
-  "symbol" | "price" | "priceChange24h" | "rsi14" | "volumeChange24h" | "chain" | "ma111" | "maDistancePct"
+  AssetSignalRow,
+  | "symbol"
+  | "price"
+  | "priceChange24h"
+  | "rsi14"
+  | "volumeChange24h"
+  | "chain"
+  | "ma111"
+  | "maDistancePct"
+  | "regime4h"
+  | "recommendation30m"
 >;
 type SortDirection = "none" | "asc" | "desc";
 type IntelligenceMode = "chain" | "sector";
+type GridColumn = { key: SortKey; label: string; align?: "right" | "left" };
 type AiContextSnapshot = {
   timeframe: Timeframe;
   activePreset: string;
@@ -55,9 +66,17 @@ type AiContextSnapshot = {
     key: SortKey;
     direction: SortDirection;
   };
-  visibleAssets: AssetRow[];
+  visibleAssets: AssetSignalRow[];
   chainSummary: ReturnType<typeof getChainSummaries>;
   sectorSummary: ReturnType<typeof getSectorSummaries>;
+  signalSummary: {
+    bullish: number;
+    bearish: number;
+    neutral: number;
+    longBuy: number;
+    shortSell: number;
+    wait: number;
+  };
   inspectedChain: {
     chain: ChainKey;
     status: "idle" | "loading" | "ready";
@@ -87,7 +106,7 @@ const entrySignals = [
   ["$TON", "+5.41", "HOT"]
 ];
 
-const columns: Array<{ key: SortKey; label: string; align?: "right" | "left" }> = [
+const baseColumns: GridColumn[] = [
   { key: "symbol", label: "Asset", align: "left" },
   { key: "price", label: "Price" },
   { key: "priceChange24h", label: "24h" },
@@ -97,6 +116,19 @@ const columns: Array<{ key: SortKey; label: string; align?: "right" | "left" }> 
   { key: "ma111", label: "MA111" },
   { key: "maDistancePct", label: "MA Dist." }
 ];
+
+const multiTimeframeRules = {
+  regime_4h: {
+    bullish: "price > MA111 and RSI > 55",
+    bearish: "price < MA111 and RSI < 50",
+    neutral: "all mixed or boundary conditions"
+  },
+  recommendation_30m: {
+    long_buy: "4h Bullish and 30m RSI < 35",
+    short_sell: "4h Bearish and 30m RSI > 70",
+    wait: "all other conditions"
+  }
+};
 
 export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const [authMode, setAuthMode] = useState<AuthMode>(initialView === "admin" ? "admin" : "visitor");
@@ -124,7 +156,13 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   ]);
   const [activePreset, setActivePreset] = useState("Manual");
 
-  const sourceAssets = useMemo(() => getMockAssets(timeframe), [timeframe]);
+  const assets4h = useMemo(() => getMockAssets("4h"), []);
+  const assets30m = useMemo(() => getMockAssets("30m"), []);
+  const activeTimeframeAssets = timeframe === "4h" ? assets4h : assets30m;
+  const sourceAssets = useMemo(
+    () => enrichAssetsWithSignals(activeTimeframeAssets, assets4h, assets30m),
+    [activeTimeframeAssets, assets4h, assets30m]
+  );
   const filteredAssets = useMemo(() => {
     const rows = sourceAssets.filter(
       (asset) =>
@@ -141,6 +179,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const chainSummaries = useMemo(() => getChainSummaries(sourceAssets), [sourceAssets]);
   const sectorSummaries = useMemo(() => getSectorSummaries(sourceAssets), [sourceAssets]);
   const visibleTickers = useMemo(() => filteredAssets.map((asset) => asset.symbol), [filteredAssets]);
+  const signalSummary = useMemo(() => getSignalSummary(filteredAssets), [filteredAssets]);
   const aiContext = useMemo<AiContextSnapshot>(
     () => ({
       timeframe,
@@ -157,6 +196,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
       visibleAssets: filteredAssets.slice(0, 50),
       chainSummary: chainSummaries,
       sectorSummary: sectorSummaries,
+      signalSummary,
       inspectedChain: {
         chain: selectedChainMap,
         status: chainDetailStatus,
@@ -184,6 +224,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
       selectedChainMap,
       selectedChains,
       selectedSectorMap,
+      signalSummary,
       sortDirection,
       sortKey,
       timeframe
@@ -415,6 +456,14 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
                 </div>
                 <div className="toolbar-stats">
                   <Metric label="Pinned" value={`${pinned.length}/5`} />
+                  <Metric
+                    label={timeframe === "4h" ? "Regime" : "Setups"}
+                    value={
+                      timeframe === "4h"
+                        ? `${signalSummary.bullish}B / ${signalSummary.bearish}S`
+                        : `${signalSummary.longBuy + signalSummary.shortSell} active`
+                    }
+                  />
                   <Metric label="Preset" value={activePreset} />
                   <Metric label="Rows" value={String(filteredAssets.length)} />
                 </div>
@@ -422,6 +471,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
 
               <AssetGrid
                 rows={filteredAssets}
+                timeframe={timeframe}
                 sortKey={sortKey}
                 sortDirection={sortDirection}
                 pinned={pinned}
@@ -730,14 +780,16 @@ function MarketIntelligence({
                   </div>
                   <div>
                     <span className="project-tag">{project.category}</span>
-                    <span className={`signal-tag ${project.signal.toLowerCase()}`}>{project.signal}</span>
+                    <span className={`regime-pill ${project.regime4h.toLowerCase()}`}>{project.regime4h}</span>
+                    <span className={`setup-pill ${setupClass(project.recommendation30m)}`}>{project.recommendation30m}</span>
                   </div>
                   <div className="project-metrics">
                     <span className={project.priceChange24h >= 0 ? "positive" : "negative"}>{formatPct(project.priceChange24h)}</span>
                     <span>RSI {project.rsi14.toFixed(1)}</span>
+                    <span>30m {project.rsi30m.toFixed(1)}</span>
                     <span className={project.maDistancePct >= 0 ? "positive" : "negative"}>{formatPct(project.maDistancePct)}</span>
                   </div>
-                  <p>{project.note}</p>
+                  <p>{project.signalReason}</p>
                 </article>
               ))}
         </div>
@@ -793,6 +845,7 @@ function RangeControl({
 
 function AssetGrid({
   rows,
+  timeframe,
   sortKey,
   sortDirection,
   pinned,
@@ -800,7 +853,8 @@ function AssetGrid({
   onSort,
   onPin
 }: {
-  rows: AssetRow[];
+  rows: AssetSignalRow[];
+  timeframe: Timeframe;
   sortKey: SortKey;
   sortDirection: SortDirection;
   pinned: string[];
@@ -808,13 +862,18 @@ function AssetGrid({
   onSort: (key: SortKey) => void;
   onPin: (symbol: string) => void;
 }) {
+  const visibleColumns: GridColumn[] = [
+    ...baseColumns,
+    timeframe === "4h" ? { key: "regime4h", label: "Regime" } : { key: "recommendation30m", label: "Setup" }
+  ];
+
   return (
     <div className="grid-shell">
       <table className="asset-grid">
         <thead>
           <tr>
             <th aria-label="Pinned assets" />
-            {columns.map((column) => (
+            {visibleColumns.map((column) => (
               <th className={column.align === "left" ? "left" : ""} key={column.key}>
                 <button onClick={() => onSort(column.key)}>
                   {column.label}
@@ -852,6 +911,23 @@ function AssetGrid({
                 </td>
                 <td>{formatPrice(asset.ma111)}</td>
                 <td className={asset.maDistancePct >= 0 ? "positive" : "negative"}>{formatPct(asset.maDistancePct)}</td>
+                <td title={asset.signalReason}>
+                  {timeframe === "4h" ? (
+                    <span className="signal-cell">
+                      <span className={`regime-pill ${asset.regime4h.toLowerCase()}`}>{asset.regime4h}</span>
+                      <small>
+                        RSI {asset.rsi4h.toFixed(1)} / MA {formatPct(asset.maDistance4hPct)}
+                      </small>
+                    </span>
+                  ) : (
+                    <span className="signal-cell">
+                      <span className={`setup-pill ${setupClass(asset.recommendation30m)}`}>{asset.recommendation30m}</span>
+                      <small>
+                        4h {asset.regime4h} / RSI {asset.rsi30m.toFixed(1)}
+                      </small>
+                    </span>
+                  )}
+                </td>
               </tr>
             );
           })}
@@ -888,7 +964,7 @@ function AiDrawer({
   open: boolean;
   response: string;
   pinned: string[];
-  rows: AssetRow[];
+  rows: AssetSignalRow[];
   context: AiContextSnapshot;
   onToggle: () => void;
   onPreset: (kind: keyof typeof aiPresetResponses) => void;
@@ -903,6 +979,8 @@ function AiDrawer({
         ma_distance_range: context.filterState.maDistanceRange
       },
       sort: context.sort,
+      multi_timeframe_rules: multiTimeframeRules,
+      signal_summary: context.signalSummary,
       visible_assets: context.visibleAssets,
       chain_summary: context.chainSummary,
       sector_summary: context.sectorSummary,
@@ -929,11 +1007,9 @@ function AiDrawer({
           </div>
           <div className="ai-context-packet">
             <span>Context packet</span>
+            <span>{context.signalSummary.bullish} bullish / {context.signalSummary.bearish} bearish / {context.signalSummary.neutral} neutral</span>
             <span>
-              {context.chainSummary.length} chains / {context.sectorSummary.length} sectors / {context.visibleAssets.length} rows
-            </span>
-            <span>
-              {context.inspectedChain.chain} + {context.inspectedSector.sector}
+              {context.signalSummary.longBuy + context.signalSummary.shortSell} setups / {context.visibleAssets.length} rows
             </span>
           </div>
           <div className="ai-presets">
@@ -941,6 +1017,7 @@ function AiDrawer({
             <button onClick={() => onPreset("chains")}>Chain strength ranking</button>
             <button onClick={() => onPreset("volume")}>Volume anomalies</button>
             <button onClick={() => onPreset("ma")}>MA111 breakdown watch</button>
+            <button onClick={() => onPreset("setup")}>4h regime / 30m trigger</button>
           </div>
           <div className="ai-output-grid">
             <pre className="ai-response">
@@ -1070,7 +1147,22 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function sortRows(rows: AssetRow[], key: SortKey, direction: SortDirection) {
+function getSignalSummary(rows: AssetSignalRow[]): AiContextSnapshot["signalSummary"] {
+  return rows.reduce(
+    (summary, asset) => {
+      if (asset.regime4h === "Bullish") summary.bullish += 1;
+      if (asset.regime4h === "Bearish") summary.bearish += 1;
+      if (asset.regime4h === "Neutral") summary.neutral += 1;
+      if (asset.recommendation30m === "Long/Buy") summary.longBuy += 1;
+      if (asset.recommendation30m === "Short/Sell") summary.shortSell += 1;
+      if (asset.recommendation30m === "Wait") summary.wait += 1;
+      return summary;
+    },
+    { bullish: 0, bearish: 0, neutral: 0, longBuy: 0, shortSell: 0, wait: 0 }
+  );
+}
+
+function sortRows(rows: AssetSignalRow[], key: SortKey, direction: SortDirection) {
   if (direction === "none") {
     return rows;
   }
@@ -1078,9 +1170,32 @@ function sortRows(rows: AssetRow[], key: SortKey, direction: SortDirection) {
   return [...rows].sort((a, b) => {
     const first = a[key];
     const second = b[key];
-    const result = typeof first === "string" ? String(first).localeCompare(String(second)) : Number(first) - Number(second);
+    const result =
+      key === "regime4h" || key === "recommendation30m"
+        ? getSortValue(first, key) - getSortValue(second, key)
+        : typeof first === "string"
+          ? String(first).localeCompare(String(second))
+          : Number(first) - Number(second);
     return direction === "asc" ? result : -result;
   });
+}
+
+function getSortValue(value: AssetSignalRow[SortKey], key: SortKey) {
+  if (key === "regime4h") {
+    return { Bullish: 3, Neutral: 2, Bearish: 1 }[String(value)] || 0;
+  }
+
+  if (key === "recommendation30m") {
+    return { "Long/Buy": 3, "Short/Sell": 2, Wait: 1 }[String(value)] || 0;
+  }
+
+  return Number(value);
+}
+
+function setupClass(value: AssetSignalRow["recommendation30m"]) {
+  if (value === "Long/Buy") return "long";
+  if (value === "Short/Sell") return "short";
+  return "wait";
 }
 
 function sortGlyphAscii(direction: SortDirection) {
