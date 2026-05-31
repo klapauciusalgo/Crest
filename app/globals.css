@@ -1505,6 +1505,28 @@ input[type="range"] {
   }
 }
 
+@media (max-height: 820px) and (min-width: 901px) {
+  .auth-entry h1 {
+    max-width: 700px;
+    font-size: 74px;
+    line-height: 0.93;
+  }
+
+  .auth-entry p:not(.micro-label) {
+    margin-top: 16px;
+    line-height: 1.45;
+  }
+
+  .entry-status {
+    margin-top: 18px;
+  }
+
+  .entry-footer {
+    bottom: 10px;
+    padding-top: 14px;
+  }
+}
+
 @media (max-height: 760px) and (min-width: 901px) {
   .entry-shell {
     padding: 18px 32px;
