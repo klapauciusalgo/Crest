@@ -9,7 +9,6 @@ import {
   CircleUserRound,
   Command,
   Database,
-  Lock,
   Pin,
   Settings,
   SlidersHorizontal,
@@ -516,13 +515,6 @@ function AuthEntry({ onAuth }: { onAuth: (mode: AuthMode) => void }) {
             <span>
               Connect wallet mock
               <small>SIWE journey preview</small>
-            </span>
-          </button>
-          <button onClick={() => onAuth("admin")}>
-            <Lock size={16} />
-            <span>
-              Enter admin mock
-              <small>Provider controls</small>
             </span>
           </button>
         </div>
