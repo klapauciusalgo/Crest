@@ -939,10 +939,10 @@ input[type="range"] {
 
 .auth-entry h1 {
   max-width: 760px;
-  font-size: clamp(68px, 7vw, 112px);
+  font-size: clamp(58px, 6.4vw, 92px);
   font-weight: 760;
-  line-height: 0.88;
-  letter-spacing: -0.035em;
+  line-height: 0.92;
+  letter-spacing: -0.03em;
   text-wrap: balance;
 }
 
