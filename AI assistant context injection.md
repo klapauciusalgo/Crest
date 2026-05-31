@@ -14,6 +14,11 @@ CONTEXT FORMAT (injected automatically per request)
   "filter_state": { "chains": ["BSC", "ETH"], "rsi_range": [0, 35], "ma_distance_range": [-100, 0] },
   "sort": { "key": "priceChange24h", "direction": "desc" },
   "pagination": { "page": 1, "pageSize": 20, "totalRows": 20, "totalPages": 1 },
+  "market_breadth": [
+    { "range": "Top 100", "averageRsi": 58.4, "bullishCount": 42, "bearishCount": 31, "neutralCount": 27, "bullishPct": 42, "bearishPct": 31 },
+    { "range": "Top 200", "averageRsi": 54.1, "bullishCount": 74, "bearishCount": 82, "neutralCount": 44, "bullishPct": 37, "bearishPct": 41 },
+    { "range": "Top 300", "averageRsi": 50.2, "bullishCount": 93, "bearishCount": 138, "neutralCount": 69, "bullishPct": 31, "bearishPct": 46 }
+  ],
   "multi_timeframe_rules": {
     "regime_4h": {
       "bullish": "price > MA111 and RSI > 55",
