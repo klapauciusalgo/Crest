@@ -44,6 +44,33 @@ type SortKey = keyof Pick<
 >;
 type SortDirection = "none" | "asc" | "desc";
 type IntelligenceMode = "chain" | "sector";
+type AiContextSnapshot = {
+  timeframe: Timeframe;
+  activePreset: string;
+  filterState: {
+    chains: ChainKey[];
+    rsiRange: [number, number];
+    maDistanceRange: [number, number];
+  };
+  sort: {
+    key: SortKey;
+    direction: SortDirection;
+  };
+  visibleAssets: AssetRow[];
+  chainSummary: ReturnType<typeof getChainSummaries>;
+  sectorSummary: ReturnType<typeof getSectorSummaries>;
+  inspectedChain: {
+    chain: ChainKey;
+    status: "idle" | "loading" | "ready";
+    projects: ChainProjectDetail[];
+  };
+  inspectedSector: {
+    sector: SectorKey;
+    status: "idle" | "loading" | "ready";
+    projects: ChainProjectDetail[];
+  };
+  pinnedAssets: string[];
+};
 type SavedPreset = {
   name: string;
   chains: ChainKey[];
@@ -115,6 +142,54 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const chainSummaries = useMemo(() => getChainSummaries(sourceAssets), [sourceAssets]);
   const sectorSummaries = useMemo(() => getSectorSummaries(sourceAssets), [sourceAssets]);
   const visibleTickers = useMemo(() => filteredAssets.map((asset) => asset.symbol), [filteredAssets]);
+  const aiContext = useMemo<AiContextSnapshot>(
+    () => ({
+      timeframe,
+      activePreset,
+      filterState: {
+        chains: selectedChains,
+        rsiRange,
+        maDistanceRange: maRange
+      },
+      sort: {
+        key: sortKey,
+        direction: sortDirection
+      },
+      visibleAssets: filteredAssets.slice(0, 50),
+      chainSummary: chainSummaries,
+      sectorSummary: sectorSummaries,
+      inspectedChain: {
+        chain: selectedChainMap,
+        status: chainDetailStatus,
+        projects: chainDetails
+      },
+      inspectedSector: {
+        sector: selectedSectorMap,
+        status: sectorDetailStatus,
+        projects: sectorDetails
+      },
+      pinnedAssets: pinned.map((symbol) => `$${symbol}`)
+    }),
+    [
+      activePreset,
+      chainDetailStatus,
+      chainDetails,
+      chainSummaries,
+      filteredAssets,
+      maRange,
+      pinned,
+      rsiRange,
+      sectorDetailStatus,
+      sectorDetails,
+      sectorSummaries,
+      selectedChainMap,
+      selectedChains,
+      selectedSectorMap,
+      sortDirection,
+      sortKey,
+      timeframe
+    ]
+  );
 
   useEffect(() => {
     setChainDetailStatus("loading");
@@ -238,27 +313,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
             <span className="live-dot">Live mock</span>
           </div>
 
-          <MarketIntelligence
-            mode={intelligenceMode}
-            onMode={setIntelligenceMode}
-            chainSummaries={chainSummaries}
-            selectedChain={selectedChainMap}
-            selectedChains={selectedChains}
-            chainDetails={chainDetails}
-            chainStatus={chainDetailStatus}
-            sectorSummaries={sectorSummaries}
-            selectedSector={selectedSectorMap}
-            sectorDetails={sectorDetails}
-            sectorStatus={sectorDetailStatus}
-            onChainSelect={(chain) => {
-              setSelectedChainMap(chain);
-            }}
-            onSectorSelect={(sector) => {
-              setSelectedSectorMap(sector);
-            }}
-          />
-
-          <div className="rail-section">
+          <div className="rail-section chain-filter-section">
             <div className="section-title">
               <SlidersHorizontal size={14} />
               Chains
@@ -295,6 +350,26 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
               ))}
             </div>
           </div>
+
+          <MarketIntelligence
+            mode={intelligenceMode}
+            onMode={setIntelligenceMode}
+            chainSummaries={chainSummaries}
+            selectedChain={selectedChainMap}
+            selectedChains={selectedChains}
+            chainDetails={chainDetails}
+            chainStatus={chainDetailStatus}
+            sectorSummaries={sectorSummaries}
+            selectedSector={selectedSectorMap}
+            sectorDetails={sectorDetails}
+            sectorStatus={sectorDetailStatus}
+            onChainSelect={(chain) => {
+              setSelectedChainMap(chain);
+            }}
+            onSectorSelect={(sector) => {
+              setSelectedSectorMap(sector);
+            }}
+          />
 
           <div className="rail-section">
             <div className="section-title">RSI range</div>
@@ -367,6 +442,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
         response={aiResponse}
         pinned={pinned}
         rows={filteredAssets}
+        context={aiContext}
         onToggle={() => setAiOpen((current) => !current)}
         onPreset={runAiPreset}
       />
@@ -813,6 +889,7 @@ function AiDrawer({
   response,
   pinned,
   rows,
+  context,
   onToggle,
   onPreset
 }: {
@@ -820,9 +897,31 @@ function AiDrawer({
   response: string;
   pinned: string[];
   rows: AssetRow[];
+  context: AiContextSnapshot;
   onToggle: () => void;
   onPreset: (kind: keyof typeof aiPresetResponses) => void;
 }) {
+  const contextJson = JSON.stringify(
+    {
+      timeframe: context.timeframe,
+      active_preset: context.activePreset,
+      filter_state: {
+        chains: context.filterState.chains,
+        rsi_range: context.filterState.rsiRange,
+        ma_distance_range: context.filterState.maDistanceRange
+      },
+      sort: context.sort,
+      visible_assets: context.visibleAssets,
+      chain_summary: context.chainSummary,
+      sector_summary: context.sectorSummary,
+      inspected_chain: context.inspectedChain,
+      inspected_sector: context.inspectedSector,
+      pinned_assets: context.pinnedAssets
+    },
+    null,
+    2
+  );
+
   return (
     <section className={`ai-drawer ${open ? "open" : ""}`}>
       <button className="ai-collapsed" onClick={onToggle}>
@@ -836,16 +935,31 @@ function AiDrawer({
             <span>{rows.length} visible rows</span>
             <span>{pinned.map((symbol) => `$${symbol}`).join(" ") || "No pins"}</span>
           </div>
+          <div className="ai-context-packet">
+            <span>Context packet</span>
+            <span>
+              {context.chainSummary.length} chains / {context.sectorSummary.length} sectors / {context.visibleAssets.length} rows
+            </span>
+            <span>
+              {context.inspectedChain.chain} + {context.inspectedSector.sector}
+            </span>
+          </div>
           <div className="ai-presets">
             <button onClick={() => onPreset("oversold")}>Oversold opportunities</button>
             <button onClick={() => onPreset("chains")}>Chain strength ranking</button>
             <button onClick={() => onPreset("volume")}>Volume anomalies</button>
             <button onClick={() => onPreset("ma")}>MA111 breakdown watch</button>
           </div>
-          <pre className="ai-response">
-            {response || "Select a preset prompt to stream a mock analyst response."}
-            {response && <span className="cursor">_</span>}
-          </pre>
+          <div className="ai-output-grid">
+            <pre className="ai-response">
+              {response || "Select a preset prompt to stream a mock analyst response."}
+              {response && <span className="cursor">_</span>}
+            </pre>
+            <details className="ai-context-preview">
+              <summary>Injected data</summary>
+              <pre>{contextJson}</pre>
+            </details>
+          </div>
           <div className="ai-input">
             <span>&gt;</span>
             <input placeholder="e.g. which BSC tokens are oversold?" />

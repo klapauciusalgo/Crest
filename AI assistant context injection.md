@@ -10,7 +10,9 @@ BEHAVIOR RULES
 CONTEXT FORMAT (injected automatically per request)
 {
   "timeframe": "4h",
+  "active_preset": "Manual",
   "filter_state": { "chains": ["BSC", "ETH"], "rsi_range": [0, 35], "ma_distance_range": [-100, 0] },
+  "sort": { "key": "priceChange24h", "direction": "desc" },
   "visible_assets": [
     { "symbol": "BNB", "price": 412.5, "price_change_24h": -2.1, "rsi_14": 28.3, "volume_change_24h": +15.2, "chain": "BSC", "sectors": ["Layer 1", "CEX"], "ma111": 440.0, "ma_distance_pct": -6.25 },
     ...up to 50 rows max
@@ -22,6 +24,16 @@ CONTEXT FORMAT (injected automatically per request)
   "sector_summary": {
     "DeFi": { "avg_price_change": +1.4, "avg_volume_change": +18.7, "gainers": 12, "losers": 6, "leader": "AERO" },
     "AI": { "avg_price_change": +3.2, "avg_volume_change": +31.4, "gainers": 5, "losers": 2, "leader": "FET" }
+  },
+  "inspected_chain": {
+    "chain": "BASE",
+    "status": "ready",
+    "projects": []
+  },
+  "inspected_sector": {
+    "sector": "AI",
+    "status": "ready",
+    "projects": []
   },
   "pinned_assets": ["$BTC", "$ETH"],
   "user_message": "[user's actual prompt here]"

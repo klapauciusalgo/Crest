@@ -19,6 +19,8 @@
 - [x] Chain intelligence adjusted to preserve all-chain default and multi-chain filters.
 - [x] Sector intelligence added with mock category/project detail fetch.
 - [x] Requirement docs updated for sector intelligence and provider category sources.
+- [x] Multi-chain selector moved above intelligence panel so it is always reachable.
+- [x] AI drawer now receives full market context snapshot for future SSE requests.
 
 ## In Progress
 

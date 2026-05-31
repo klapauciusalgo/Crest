@@ -138,6 +138,10 @@ Every AI request must include:
 - Current visible asset rows, up to 50 rows max.
 - Chain summary.
 - Sector summary.
+- Active preset.
+- Active sort state.
+- Currently inspected chain and fetched chain project details.
+- Currently inspected sector and fetched sector project details.
 - Pinned assets.
 - User message.
 - Recent session history, last 20 messages.
@@ -202,6 +206,7 @@ The prototype should be real frontend code, not a static design mock. It should 
 - Switch to sector intelligence and fetch sector project details.
 - Pin and unpin assets.
 - Open the AI drawer.
+- Inspect the injected AI data context, including visible rows, chain summaries, sector summaries, inspected chain/sector details, filter state, sort state, and pinned assets.
 - Select preset prompts.
 - Stream a mock AI response.
 - Highlight mentioned ticker rows in the grid.

@@ -49,6 +49,7 @@ Both methods produce a unified user session with role: "user" | "admin"
 
 AI ASSISTANT SYSTEM
 - Inject current visible data snapshot (filtered grid state as JSON) into every AI request as context
+- Include all data required for current terminal analysis in the context packet: filter state, sort state, visible assets, chain summaries, sector summaries, inspected chain details, inspected sector details, pinned assets, timeframe, and active preset
 - Streaming responses via SSE from Vercel route handlers
 - Session history per user (last 20 messages) stored in Supabase Postgres
 - User can "pin" up to 5 assets — always injected into AI context
