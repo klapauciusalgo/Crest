@@ -69,7 +69,8 @@ button {
 .terminal-shell {
   display: grid;
   grid-template-rows: 48px minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background:
     linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
@@ -360,6 +361,10 @@ button {
   margin-bottom: 0;
 }
 
+.chain-intel-head {
+  order: 1;
+}
+
 .fetch-state {
   border: 1px solid var(--border);
   background: var(--surface);
@@ -380,6 +385,7 @@ button {
 }
 
 .intel-tabs {
+  order: 2;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   border: 1px solid var(--border);
@@ -408,6 +414,7 @@ button {
 }
 
 .chain-map {
+  order: 4;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
@@ -510,6 +517,7 @@ button {
 }
 
 .chain-detail {
+  order: 3;
   border: 1px solid color-mix(in srgb, var(--chain-color), #1e2028 72%);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--chain-color), transparent 94%), transparent 48%),
@@ -663,26 +671,26 @@ button {
 
 .chain-filter-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 
 .chain-filter {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 28px;
+  gap: 5px;
+  min-height: 26px;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
 }
 
 .chain-filter span {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   background: var(--chain-color);
 }
 
@@ -1640,6 +1648,47 @@ input[type="range"] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     max-height: none;
     border-right: 0;
+  }
+
+  .chain-filter-section,
+  .chain-intel {
+    padding: 8px;
+  }
+
+  .chain-filter-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .chain-filter {
+    gap: 4px;
+    min-height: 24px;
+    padding: 0 5px;
+    font-size: 10px;
+  }
+
+  .chain-filter span {
+    width: 6px;
+    height: 6px;
+  }
+
+  .chain-actions button {
+    min-height: 24px;
+  }
+
+  .chain-map {
+    max-height: 154px;
+    overflow: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .chain-signal {
+    min-height: 58px;
+    padding: 7px 8px;
+  }
+
+  .chain-project-list {
+    max-height: 130px;
   }
 
   .workspace {

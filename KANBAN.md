@@ -21,6 +21,7 @@
 - [x] Requirement docs updated for sector intelligence and provider category sources.
 - [x] Multi-chain selector moved above intelligence panel so it is always reachable.
 - [x] AI drawer now receives full market context snapshot for future SSE requests.
+- [x] Chain detail panel repositioned so selected-chain details are visible with multi-chain controls at normal zoom.
 
 ## In Progress
 
