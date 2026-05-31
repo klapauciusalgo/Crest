@@ -1076,14 +1076,22 @@ input[type="range"] {
 }
 
 .grid-shell {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 38px;
   height: calc(100vh - 152px);
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}
+
+.asset-table-wrap {
+  min-height: 0;
   overflow: auto;
   scrollbar-gutter: stable;
 }
 
 .asset-grid {
   width: 100%;
-  min-width: 1040px;
+  min-width: 980px;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
 }
@@ -1236,17 +1244,58 @@ input[type="range"] {
 }
 
 .signal-cell {
-  display: inline-grid;
-  min-width: 104px;
-  justify-items: end;
-  gap: 3px;
+  display: inline-flex;
+  min-width: 72px;
+  justify-content: flex-end;
 }
 
-.signal-cell small {
-  color: var(--faint);
+.grid-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  background: #101115;
+  color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
+  padding: 0 12px;
+}
+
+.grid-pagination > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.grid-pagination button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 9px;
+  font-size: 11px;
+}
+
+.grid-pagination button:not(:disabled):hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.grid-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.grid-pagination strong {
+  min-width: 68px;
+  color: var(--text);
   font-weight: 500;
+  text-align: center;
 }
 
 .ai-drawer {

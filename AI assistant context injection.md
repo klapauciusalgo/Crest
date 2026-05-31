@@ -13,6 +13,7 @@ CONTEXT FORMAT (injected automatically per request)
   "active_preset": "Manual",
   "filter_state": { "chains": ["BSC", "ETH"], "rsi_range": [0, 35], "ma_distance_range": [-100, 0] },
   "sort": { "key": "priceChange24h", "direction": "desc" },
+  "pagination": { "page": 1, "pageSize": 20, "totalRows": 20, "totalPages": 1 },
   "multi_timeframe_rules": {
     "regime_4h": {
       "bullish": "price > MA111 and RSI > 55",

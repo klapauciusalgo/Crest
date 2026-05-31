@@ -5,6 +5,8 @@ import {
   BarChart3,
   Bot,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   CircleUserRound,
   Command,
@@ -65,6 +67,12 @@ type AiContextSnapshot = {
   sort: {
     key: SortKey;
     direction: SortDirection;
+  };
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalRows: number;
+    totalPages: number;
   };
   visibleAssets: AssetSignalRow[];
   chainSummary: ReturnType<typeof getChainSummaries>;
@@ -129,6 +137,7 @@ const multiTimeframeRules = {
     wait: "all other conditions"
   }
 };
+const pageSize = 20;
 
 export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const [authMode, setAuthMode] = useState<AuthMode>(initialView === "admin" ? "admin" : "visitor");
@@ -150,6 +159,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const [sectorDetailStatus, setSectorDetailStatus] = useState<"idle" | "loading" | "ready">("idle");
   const [chainDetails, setChainDetails] = useState<ChainProjectDetail[]>([]);
   const [sectorDetails, setSectorDetails] = useState<ChainProjectDetail[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([
     { name: "BSC oversold", chains: ["BSC"], rsi: [0, 35], ma: [-20, 0] },
     { name: "MA111 support", chains: allChains, rsi: [20, 55], ma: [-5, 1] }
@@ -178,7 +188,12 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
 
   const chainSummaries = useMemo(() => getChainSummaries(sourceAssets), [sourceAssets]);
   const sectorSummaries = useMemo(() => getSectorSummaries(sourceAssets), [sourceAssets]);
-  const visibleTickers = useMemo(() => filteredAssets.map((asset) => asset.symbol), [filteredAssets]);
+  const totalPages = Math.max(1, Math.ceil(filteredAssets.length / pageSize));
+  const paginatedAssets = useMemo(() => {
+    const pageStart = (currentPage - 1) * pageSize;
+    return filteredAssets.slice(pageStart, pageStart + pageSize);
+  }, [currentPage, filteredAssets]);
+  const visibleTickers = useMemo(() => paginatedAssets.map((asset) => asset.symbol), [paginatedAssets]);
   const signalSummary = useMemo(() => getSignalSummary(filteredAssets), [filteredAssets]);
   const aiContext = useMemo<AiContextSnapshot>(
     () => ({
@@ -193,7 +208,13 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
         key: sortKey,
         direction: sortDirection
       },
-      visibleAssets: filteredAssets.slice(0, 50),
+      pagination: {
+        page: currentPage,
+        pageSize,
+        totalRows: filteredAssets.length,
+        totalPages
+      },
+      visibleAssets: paginatedAssets,
       chainSummary: chainSummaries,
       sectorSummary: sectorSummaries,
       signalSummary,
@@ -214,8 +235,10 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
       chainDetailStatus,
       chainDetails,
       chainSummaries,
+      currentPage,
       filteredAssets,
       maRange,
+      paginatedAssets,
       pinned,
       rsiRange,
       sectorDetailStatus,
@@ -227,6 +250,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
       signalSummary,
       sortDirection,
       sortKey,
+      totalPages,
       timeframe
     ]
   );
@@ -260,6 +284,14 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
     const tickers = Array.from(aiResponse.matchAll(/\$([A-Z0-9]+)/g)).map((match) => match[1]);
     setHighlightedTickers(tickers.filter((ticker) => visibleTickers.includes(ticker)));
   }, [aiResponse, visibleTickers]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [timeframe, selectedChains, rsiRange, maRange, sortKey, sortDirection]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   const isSignedOut = authMode === "visitor";
 
@@ -470,13 +502,18 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
               </div>
 
               <AssetGrid
-                rows={filteredAssets}
+                rows={paginatedAssets}
                 timeframe={timeframe}
+                currentPage={currentPage}
+                pageSize={pageSize}
                 sortKey={sortKey}
                 sortDirection={sortDirection}
+                totalPages={totalPages}
+                totalRows={filteredAssets.length}
                 pinned={pinned}
                 highlightedTickers={highlightedTickers}
                 onSort={cycleSort}
+                onPage={setCurrentPage}
                 onPin={togglePin}
               />
             </>
@@ -490,7 +527,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
         open={aiOpen}
         response={aiResponse}
         pinned={pinned}
-        rows={filteredAssets}
+        rows={paginatedAssets}
         context={aiContext}
         onToggle={() => setAiOpen((current) => !current)}
         onPreset={runAiPreset}
@@ -846,93 +883,121 @@ function RangeControl({
 function AssetGrid({
   rows,
   timeframe,
+  currentPage,
+  pageSize,
   sortKey,
   sortDirection,
+  totalPages,
+  totalRows,
   pinned,
   highlightedTickers,
   onSort,
+  onPage,
   onPin
 }: {
   rows: AssetSignalRow[];
   timeframe: Timeframe;
+  currentPage: number;
+  pageSize: number;
   sortKey: SortKey;
   sortDirection: SortDirection;
+  totalPages: number;
+  totalRows: number;
   pinned: string[];
   highlightedTickers: string[];
   onSort: (key: SortKey) => void;
+  onPage: (page: number) => void;
   onPin: (symbol: string) => void;
 }) {
   const visibleColumns: GridColumn[] = [
     ...baseColumns,
     timeframe === "4h" ? { key: "regime4h", label: "Regime" } : { key: "recommendation30m", label: "Setup" }
   ];
+  const firstRow = totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const lastRow = Math.min(currentPage * pageSize, totalRows);
 
   return (
     <div className="grid-shell">
-      <table className="asset-grid">
-        <thead>
-          <tr>
-            <th aria-label="Pinned assets" />
-            {visibleColumns.map((column) => (
-              <th className={column.align === "left" ? "left" : ""} key={column.key}>
-                <button onClick={() => onSort(column.key)}>
-                  {column.label}
-                  <span>{sortKey === column.key ? sortGlyphAscii(sortDirection) : ""}</span>
-                </button>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((asset) => {
-            const isPinned = pinned.includes(asset.symbol);
-            const isHighlighted = highlightedTickers.includes(asset.symbol);
-            return (
-              <tr className={`${isPinned ? "pinned" : ""} ${isHighlighted ? "highlight" : ""}`} key={asset.symbol}>
-                <td>
-                  <button className={`pin-button ${isPinned ? "active" : ""}`} onClick={() => onPin(asset.symbol)}>
-                    <Pin size={13} />
+      <div className="asset-table-wrap">
+        <table className="asset-grid">
+          <thead>
+            <tr>
+              <th aria-label="Pinned assets" />
+              {visibleColumns.map((column) => (
+                <th className={column.align === "left" ? "left" : ""} key={column.key}>
+                  <button onClick={() => onSort(column.key)}>
+                    {column.label}
+                    <span>{sortKey === column.key ? sortGlyphAscii(sortDirection) : ""}</span>
                   </button>
-                </td>
-                <td className="asset-cell">
-                  <strong>${asset.symbol}</strong>
-                  <span>{asset.name}</span>
-                </td>
-                <td>{formatPrice(asset.price)}</td>
-                <td className={asset.priceChange24h >= 0 ? "positive" : "negative"}>{formatPct(asset.priceChange24h)}</td>
-                <td>
-                  <RsiGauge value={asset.rsi14} />
-                </td>
-                <td className={asset.volumeChange24h >= 0 ? "positive" : "negative"}>{formatPct(asset.volumeChange24h)}</td>
-                <td>
-                  <span className="chain-badge" style={{ "--chain-color": chainColors[asset.chain] } as CSSProperties}>
-                    {asset.chain}
-                  </span>
-                </td>
-                <td>{formatPrice(asset.ma111)}</td>
-                <td className={asset.maDistancePct >= 0 ? "positive" : "negative"}>{formatPct(asset.maDistancePct)}</td>
-                <td title={asset.signalReason}>
-                  {timeframe === "4h" ? (
-                    <span className="signal-cell">
-                      <span className={`regime-pill ${asset.regime4h.toLowerCase()}`}>{asset.regime4h}</span>
-                      <small>
-                        RSI {asset.rsi4h.toFixed(1)} / MA {formatPct(asset.maDistance4hPct)}
-                      </small>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((asset) => {
+              const isPinned = pinned.includes(asset.symbol);
+              const isHighlighted = highlightedTickers.includes(asset.symbol);
+              return (
+                <tr className={`${isPinned ? "pinned" : ""} ${isHighlighted ? "highlight" : ""}`} key={asset.symbol}>
+                  <td>
+                    <button className={`pin-button ${isPinned ? "active" : ""}`} onClick={() => onPin(asset.symbol)}>
+                      <Pin size={13} />
+                    </button>
+                  </td>
+                  <td className="asset-cell">
+                    <strong>${asset.symbol}</strong>
+                    <span>{asset.name}</span>
+                  </td>
+                  <td>{formatPrice(asset.price)}</td>
+                  <td className={asset.priceChange24h >= 0 ? "positive" : "negative"}>{formatPct(asset.priceChange24h)}</td>
+                  <td>
+                    <RsiGauge value={asset.rsi14} />
+                  </td>
+                  <td className={asset.volumeChange24h >= 0 ? "positive" : "negative"}>{formatPct(asset.volumeChange24h)}</td>
+                  <td>
+                    <span className="chain-badge" style={{ "--chain-color": chainColors[asset.chain] } as CSSProperties}>
+                      {asset.chain}
                     </span>
-                  ) : (
+                  </td>
+                  <td>{formatPrice(asset.ma111)}</td>
+                  <td className={asset.maDistancePct >= 0 ? "positive" : "negative"}>{formatPct(asset.maDistancePct)}</td>
+                  <td title={asset.signalReason}>
                     <span className="signal-cell">
-                      <span className={`setup-pill ${setupClass(asset.recommendation30m)}`}>{asset.recommendation30m}</span>
-                      <small>
-                        4h {asset.regime4h} / RSI {asset.rsi30m.toFixed(1)}
-                      </small>
+                      {timeframe === "4h" ? (
+                        <span className={`regime-pill ${asset.regime4h.toLowerCase()}`}>{asset.regime4h}</span>
+                      ) : (
+                        <span className={`setup-pill ${setupClass(asset.recommendation30m)}`}>{asset.recommendation30m}</span>
+                      )}
                     </span>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="grid-pagination" aria-label="Asset pagination">
+        <span>
+          Rows {firstRow}-{lastRow} of {totalRows}
+        </span>
+        <div>
+          <button disabled={currentPage <= 1} onClick={() => onPage(Math.max(1, currentPage - 1))} aria-label="Previous page">
+            <ChevronLeft size={14} />
+            Prev
+          </button>
+          <strong>
+            Page {currentPage} / {totalPages}
+          </strong>
+          <button
+            disabled={currentPage >= totalPages}
+            onClick={() => onPage(Math.min(totalPages, currentPage + 1))}
+            aria-label="Next page"
+          >
+            Next
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -979,6 +1044,7 @@ function AiDrawer({
         ma_distance_range: context.filterState.maDistanceRange
       },
       sort: context.sort,
+      pagination: context.pagination,
       multi_timeframe_rules: multiTimeframeRules,
       signal_summary: context.signalSummary,
       visible_assets: context.visibleAssets,
