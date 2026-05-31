@@ -1077,8 +1077,9 @@ input[type="range"] {
 
 .grid-shell {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) 38px;
-  height: calc(100vh - 152px);
+  grid-template-rows: minmax(0, 1fr) 44px;
+  row-gap: 8px;
+  height: calc(100vh - 184px);
   overflow: hidden;
   scrollbar-gutter: stable;
 }
@@ -1086,6 +1087,7 @@ input[type="range"] {
 .asset-table-wrap {
   min-height: 0;
   overflow: auto;
+  padding-bottom: 8px;
   scrollbar-gutter: stable;
 }
 
@@ -1255,11 +1257,12 @@ input[type="range"] {
   justify-content: space-between;
   gap: 12px;
   border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   background: #101115;
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 11px;
-  padding: 0 12px;
+  padding: 6px 12px;
 }
 
 .grid-pagination > div {
