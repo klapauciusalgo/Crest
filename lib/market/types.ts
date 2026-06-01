@@ -9,8 +9,8 @@ export type MarketUniverseAsset = {
   symbol: string;
   name: string;
   rank: number;
-  chain: ChainKey;
-  sectors: SectorKey[];
+  chain: ChainKey | string;
+  sectors: Array<SectorKey | string>;
   source: MarketDataSource;
 };
 
