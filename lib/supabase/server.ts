@@ -1,8 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-type SupabaseKeySource = "service_role" | "server_anon" | "public_anon";
+export type SupabaseKeySource = "service_role" | "server_anon" | "public_anon";
 
-type SupabaseServerConfig = {
+export type SupabaseServerConfig = {
   key: string;
   keySource: SupabaseKeySource;
   url: string;

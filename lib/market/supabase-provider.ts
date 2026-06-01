@@ -284,5 +284,11 @@ function toCoverageStatus(value: string): AssetCoverageStatus {
 }
 
 function getSafeErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unknown Supabase snapshot error.";
+  if (error instanceof Error) return error.message;
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown Supabase snapshot error.";
+  }
 }

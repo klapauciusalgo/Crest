@@ -35,16 +35,19 @@
 - [x] Backend Phase 3 added Supabase SDK server client wiring.
 - [x] Market API provider can read Supabase snapshots with mock fallback.
 - [x] Supabase environment contract documented without committing secrets.
+- [x] Vercel project connected to GitHub repository.
+- [x] Production Vercel runtime connected to Supabase with server-side secret.
+- [x] Backend Phase 4 started with protected Supabase market seed endpoint.
+- [x] Market snapshot writer can upsert assets, snapshots, breadth, and group summaries.
 
 ## In Progress
 
-- [ ] Connect Vercel project to the GitHub repository integration.
 - [ ] Backend Phase 4: Market ingestion adapters for CMC metadata and exchange OHLCV.
 
 ## Next
 
 - [ ] Wire terminal UI to the API data source behind a feature flag.
-- [ ] Supabase project linkage and environment variable plan.
+- [ ] Seed Supabase market snapshots and verify API reads through Supabase path.
 - [ ] Add Supabase anon or service key to Vercel environment variables.
 - [ ] CoinMarketCap metadata/ranking adapter.
 - [ ] Exchange OHLCV adapter for 30m and 4h candles.
