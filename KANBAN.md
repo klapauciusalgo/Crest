@@ -42,6 +42,7 @@
 - [x] Binance OHLCV ingestion adapter added for 30m and 4h candles.
 - [x] Protected Binance ingestion endpoint added for manual/cron refresh.
 - [x] Supabase OHLCV candle persistence added.
+- [x] Vercel Cron market refresh route added with 30m cadence and 4h boundary refresh.
 
 ## In Progress
 

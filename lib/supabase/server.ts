@@ -12,10 +12,10 @@ let cachedClient: SupabaseClient | null = null;
 let cachedConfigKey: string | null = null;
 
 export function getSupabaseServerConfig(): SupabaseServerConfig | null {
-  const url = readEnv("SUPABASE_URL") || readEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const serviceRoleKey = readEnv("SUPABASE_SERVICE_ROLE_KEY");
-  const serverAnonKey = readEnv("SUPABASE_ANON_KEY");
-  const publicAnonKey = readEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const url = readServerEnv("SUPABASE_URL") || readServerEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const serviceRoleKey = readServerEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const serverAnonKey = readServerEnv("SUPABASE_ANON_KEY");
+  const publicAnonKey = readServerEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   const key = serviceRoleKey || serverAnonKey || publicAnonKey;
 
   if (!url || !key) return null;
@@ -52,6 +52,6 @@ export function getSupabaseServerClient(): SupabaseClient | null {
   return cachedClient;
 }
 
-function readEnv(name: string) {
+export function readServerEnv(name: string) {
   return process.env[name]?.replace(/^\uFEFF/, "").trim();
 }

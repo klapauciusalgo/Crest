@@ -1,11 +1,12 @@
 import { getMockMarketSnapshot } from "@/lib/market/mock-provider";
 import { writeMarketSnapshotToSupabase } from "@/lib/market/supabase-writer";
+import { readServerEnv } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
-  const seedSecret = process.env.CREST_INGEST_SECRET;
+  const seedSecret = readServerEnv("CREST_INGEST_SECRET");
 
   if (!seedSecret || authHeader !== `Bearer ${seedSecret}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
