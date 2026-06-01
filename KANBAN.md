@@ -46,14 +46,16 @@
 - [x] Terminal UI wired to the live market API with mock fallback.
 - [x] AI context now includes market data source, freshness, and coverage status.
 - [x] Supabase Cron scheduled market refresh every 30 minutes.
+- [x] Market universe changed from CMC market cap plan to Binance Top 300 by 24h USDT transaction volume.
+- [x] Supabase asset identity migrated from CMC-only to source/source asset identity.
 
 ## In Progress
 
-- [ ] Backend Phase 4: CoinMarketCap metadata/ranking adapter.
+- [ ] Backend Phase 4: Binance Top 300 volume ingestion rollout and verification.
 
 ## Next
 
-- [ ] Add CoinMarketCap metadata/ranking adapter once API key is available.
+- [ ] Add optional metadata enrichment for chain/sector classification.
 - [ ] Monitor Supabase Cron run history after the next 30-minute boundary.
 - [ ] AI provider abstraction and mock-to-live SSE route.
 

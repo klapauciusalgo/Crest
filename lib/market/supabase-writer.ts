@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient, getSupabaseServerConfig } from "@/lib/supabase/server";
 import type { MarketAssetSnapshot, MarketSnapshot, OhlcvCandle } from "@/lib/market/types";
 
-type AssetIdMap = Map<number, string>;
+type AssetIdMap = Map<string, string>;
 
 export type MarketSnapshotWriteResult = {
   assets: number;
@@ -52,14 +52,20 @@ export async function writeOhlcvCandlesToSupabase(candles: OhlcvCandle[]): Promi
 
   if (candles.length === 0) return 0;
 
-  const symbols = Array.from(new Set(candles.map((candle) => candle.symbol)));
-  const { data: assets, error: assetError } = await client.from("market_assets").select("id, symbol").in("symbol", symbols);
+  const sourceAssetIds = Array.from(new Set(candles.map((candle) => candle.symbol)));
+  const { data: assets, error: assetError } = await client
+    .from("market_assets")
+    .select("id, source_asset_id, symbol")
+    .eq("source", "binance")
+    .in("source_asset_id", sourceAssetIds);
   if (assetError) throw assetError;
 
-  const assetIdsBySymbol = new Map((assets || []).map((asset: { id: string; symbol: string }) => [asset.symbol, asset.id]));
+  const assetIdsBySourceId = new Map(
+    (assets || []).map((asset: { id: string; source_asset_id?: string; symbol: string }) => [asset.source_asset_id || asset.symbol, asset.id])
+  );
   const rows = candles
     .map((candle) => {
-      const assetId = assetIdsBySymbol.get(candle.symbol);
+      const assetId = assetIdsBySourceId.get(candle.symbol);
       if (!assetId) return null;
 
       return {
@@ -90,7 +96,8 @@ export async function writeOhlcvCandlesToSupabase(candles: OhlcvCandle[]): Promi
 
 async function upsertAssets(client: SupabaseClient, assets: MarketAssetSnapshot[]): Promise<AssetIdMap> {
   const rows = assets.map((asset) => ({
-    cmc_id: asset.cmcId,
+    cmc_id: asset.cmcId || null,
+    source_asset_id: asset.sourceAssetId,
     symbol: asset.symbol,
     name: asset.name,
     rank: asset.rank,
@@ -99,22 +106,29 @@ async function upsertAssets(client: SupabaseClient, assets: MarketAssetSnapshot[
     source: asset.source,
     metadata: {
       seeded_from: "crest_market_provider",
-      source_asset_id: asset.id
+      source_asset_id: asset.sourceAssetId,
+      rank_basis: asset.rankBasis,
+      quote_volume_24h: asset.quoteVolume24h,
+      trade_count_24h: asset.tradeCount24h,
+      blacklist_status: asset.blacklistStatus
     },
     is_active: true,
     last_metadata_sync_at: new Date().toISOString()
   }));
 
-  const { data, error } = await client.from("market_assets").upsert(rows, { onConflict: "cmc_id" }).select("id, cmc_id");
+  const { data, error } = await client
+    .from("market_assets")
+    .upsert(rows, { onConflict: "source,source_asset_id" })
+    .select("id, source_asset_id");
   if (error) throw error;
 
-  return new Map((data || []).map((row: { cmc_id: number; id: string }) => [row.cmc_id, row.id]));
+  return new Map((data || []).map((row: { source_asset_id: string; id: string }) => [row.source_asset_id, row.id]));
 }
 
 async function upsertMarketSnapshots(client: SupabaseClient, snapshot: MarketSnapshot, assetIdMap: AssetIdMap) {
   const computedAt = new Date().toISOString();
   const rows = snapshot.assets.map((asset) => {
-    const assetId = assetIdMap.get(asset.cmcId);
+    const assetId = assetIdMap.get(asset.sourceAssetId);
     if (!assetId) throw new Error(`Missing Supabase asset id for ${asset.symbol}.`);
 
     return {
@@ -218,7 +232,8 @@ async function recordRefreshRun(client: SupabaseClient, snapshot: MarketSnapshot
     error_message: errorMessage,
     metadata: {
       assets: snapshot.assets.length,
-      breadth: snapshot.breadth.length
+      breadth: snapshot.breadth.length,
+      rank_basis: snapshot.assets[0]?.rankBasis || null
     }
   });
 

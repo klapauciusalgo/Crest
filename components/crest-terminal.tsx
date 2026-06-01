@@ -18,7 +18,7 @@ import {
   Wallet
 } from "lucide-react";
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
-import { formatPct, formatPrice } from "@/lib/formatters";
+import { formatCompactDollar, formatPct, formatPrice } from "@/lib/formatters";
 import {
   AssetSignalRow,
   ChainKey,
@@ -47,6 +47,7 @@ type SortKey = keyof Pick<
   | "priceChange24h"
   | "rsi14"
   | "volumeChange24h"
+  | "quoteVolume24h"
   | "chain"
   | "ma111"
   | "maDistancePct"
@@ -95,6 +96,7 @@ type AiContextSnapshot = {
     loadStatus: MarketLoadStatus;
     lastUpdated: string | null;
     coverage: string;
+    rankBasis: string;
   };
   activePreset: string;
   filterState: {
@@ -158,7 +160,8 @@ const baseColumns: GridColumn[] = [
   { key: "price", label: "Price" },
   { key: "priceChange24h", label: "24h" },
   { key: "rsi14", label: "RSI(14)" },
-  { key: "volumeChange24h", label: "Volume" },
+  { key: "volumeChange24h", label: "Vol Chg." },
+  { key: "quoteVolume24h", label: "24h Vol" },
   { key: "chain", label: "Chain" },
   { key: "ma111", label: "MA111" },
   { key: "maDistancePct", label: "MA Dist." }
@@ -184,8 +187,8 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const [timeframe, setTimeframe] = useState<Timeframe>("4h");
   const [selectedChains, setSelectedChains] = useState<ChainKey[]>(allChains);
   const [rsiRange, setRsiRange] = useState<[number, number]>([0, 100]);
-  const [maRange, setMaRange] = useState<[number, number]>([-20, 20]);
-  const [sortKey, setSortKey] = useState<SortKey>("priceChange24h");
+  const [maRange, setMaRange] = useState<[number, number]>([-100, 100]);
+  const [sortKey, setSortKey] = useState<SortKey>("quoteVolume24h");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [pinned, setPinned] = useState<string[]>(["BTC", "ETH"]);
   const [aiOpen, setAiOpen] = useState(false);
@@ -256,7 +259,8 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
         source: activeFreshness?.source || (activeMarketStatus === "fallback" ? "mock" : "loading"),
         loadStatus: activeMarketStatus,
         lastUpdated: activeFreshness?.updatedAt || null,
-        coverage: activeFreshness ? `${activeFreshness.coverage.covered}/${activeFreshness.coverage.total}` : "0/0"
+        coverage: activeFreshness ? `${activeFreshness.coverage.covered}/${activeFreshness.coverage.total}` : "0/0",
+        rankBasis: sourceAssets[0]?.rankBasis || "mock"
       },
       activePreset,
       filterState: {
@@ -312,6 +316,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
       selectedChains,
       selectedSectorMap,
       signalSummary,
+      sourceAssets,
       sortDirection,
       sortKey,
       totalPages,
@@ -572,7 +577,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
 
           <div className="rail-section">
             <div className="section-title">MA111 distance</div>
-            <RangeControl min={-20} max={20} value={maRange} onChange={setMaRange} suffix="%" />
+            <RangeControl min={-100} max={100} value={maRange} onChange={setMaRange} suffix="%" />
           </div>
 
           <div className="rail-section">
@@ -603,7 +608,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
               <div className="workspace-toolbar">
                 <div>
                   <p className="micro-label">Market Grid</p>
-                  <h2>Top assets by current filtered context</h2>
+                  <h2>Top Binance volume assets by current context</h2>
                 </div>
                 <div className="toolbar-stats">
                   <Metric label="Pinned" value={`${pinned.length}/5`} />
@@ -1003,14 +1008,14 @@ function MarketBreadthStrip({ summaries, timeframe }: { summaries: MarketBreadth
   return (
     <section className="market-breadth-strip" aria-label="Top universe market breadth">
       <div className="breadth-label">
-        <span>Universe breadth</span>
+        <span>Volume breadth</span>
         <strong>{timeframe}</strong>
       </div>
       <div className="breadth-cards">
         {summaries.map((summary) => (
           <article className="breadth-card" key={summary.range}>
             <div className="breadth-card-head">
-              <strong>{summary.range}</strong>
+              <strong>{summary.range} Vol</strong>
               <span>Avg RSI {summary.averageRsi.toFixed(1)}</span>
             </div>
             <div className="breadth-bar" aria-hidden="true">
@@ -1103,6 +1108,7 @@ function AssetGrid({
                     <RsiGauge value={asset.rsi14} />
                   </td>
                   <td className={asset.volumeChange24h >= 0 ? "positive" : "negative"}>{formatPct(asset.volumeChange24h)}</td>
+                  <td>{formatCompactDollar(asset.quoteVolume24h || 0)}</td>
                   <td>
                     <span className="chain-badge" style={{ "--chain-color": chainColors[asset.chain] } as CSSProperties}>
                       {asset.chain}
@@ -1195,6 +1201,7 @@ function AiDrawer({
       sort: context.sort,
       pagination: context.pagination,
       data_status: context.dataStatus,
+      rank_basis: context.dataStatus.rankBasis,
       multi_timeframe_rules: multiTimeframeRules,
       market_breadth: context.marketBreadth,
       signal_summary: context.signalSummary,
@@ -1368,7 +1375,11 @@ function normalizeApiAsset(asset: AssetSignalRow): AssetSignalRow {
   return {
     ...asset,
     chain: normalizeChain(asset.chain),
-    sectors: asset.sectors.map(normalizeSector)
+    sectors: asset.sectors.map(normalizeSector),
+    rankBasis: asset.rankBasis || "mock",
+    quoteVolume24h: asset.quoteVolume24h || 0,
+    tradeCount24h: asset.tradeCount24h || 0,
+    blacklistStatus: asset.blacklistStatus || "unknown"
   };
 }
 
@@ -1489,7 +1500,7 @@ function sortRows(rows: AssetSignalRow[], key: SortKey, direction: SortDirection
         ? getSortValue(first, key) - getSortValue(second, key)
         : typeof first === "string"
           ? String(first).localeCompare(String(second))
-          : Number(first) - Number(second);
+          : Number(first || 0) - Number(second || 0);
     return direction === "asc" ? result : -result;
   });
 }

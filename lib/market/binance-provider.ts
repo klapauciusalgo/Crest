@@ -9,25 +9,91 @@ import type { Timeframe } from "@/lib/mock-data";
 import type { MarketAssetSnapshot, MarketSnapshot, OhlcvCandle } from "@/lib/market/types";
 
 type CandleMap = Map<string, OhlcvCandle[]>;
+type BinanceExchangeSymbol = {
+  symbol: string;
+  status: string;
+  baseAsset: string;
+  quoteAsset: string;
+  isSpotTradingAllowed: boolean;
+};
+type BinanceTicker = {
+  symbol: string;
+  lastPrice: string;
+  priceChangePercent?: string;
+  quoteVolume: string;
+  count: number;
+  closeTime: number;
+};
+type BinanceUniverseAsset = {
+  symbol: string;
+  marketSymbol: string;
+  rank: number;
+  quoteVolume24h: number;
+  tradeCount24h: number;
+  lastPrice: number;
+  priceChange24h: number;
+  updatedAt: string;
+};
 
 export type BinanceMarketSnapshotBundle = {
   candles: OhlcvCandle[];
   snapshots: MarketSnapshot[];
 };
 
-const binanceSymbolOverrides: Record<string, string> = {
-  MATIC: "POLUSDT"
-};
 const binanceBaseUrls = ["https://data-api.binance.vision", "https://api.binance.com"];
+const binanceUniverseSize = 300;
+const candleFetchConcurrency = 32;
+const excludedBaseAssets = new Set(
+  [
+    "USDT",
+    "USDC",
+    "FDUSD",
+    "TUSD",
+    "DAI",
+    "USDP",
+    "BUSD",
+    "USDE",
+    "SUSDE",
+    "USD1",
+    "PYUSD",
+    "EURI",
+    "EUR",
+    "AEUR",
+    "AAPL",
+    "AAPLX",
+    "AMZN",
+    "AMZNX",
+    "COIN",
+    "COINX",
+    "CRCL",
+    "CRCLX",
+    "GOOGL",
+    "GOOGLX",
+    "META",
+    "METAX",
+    "MSFT",
+    "MSFTX",
+    "MSTR",
+    "MSTRX",
+    "NVDA",
+    "NVDAX",
+    "QQQ",
+    "QQQX",
+    "SPY",
+    "SPYX",
+    "TSLA",
+    "TSLAX"
+  ].map((symbol) => symbol.toUpperCase())
+);
 
 export async function buildBinanceMarketSnapshotBundle(): Promise<BinanceMarketSnapshotBundle> {
-  const mock4h = getMockMarketSnapshot("4h");
   const mock30m = getMockMarketSnapshot("30m");
-  const candles = await fetchUniverseCandles(mock4h.assets);
+  const universe = await fetchBinanceVolumeUniverse();
+  const candles = await fetchUniverseCandles(universe);
   const candles4hBySymbol = groupCandles(candles.filter((candle) => candle.timeframe === "4h"));
   const candles30mBySymbol = groupCandles(candles.filter((candle) => candle.timeframe === "30m"));
-  const assets4h = buildAssetsForTimeframe(mock4h.assets, mock30m.assets, candles4hBySymbol, candles30mBySymbol, "4h");
-  const assets30m = buildAssetsForTimeframe(mock4h.assets, mock30m.assets, candles4hBySymbol, candles30mBySymbol, "30m");
+  const assets4h = buildAssetsForTimeframe(universe, mock30m.assets, candles4hBySymbol, candles30mBySymbol, "4h");
+  const assets30m = buildAssetsForTimeframe(universe, mock30m.assets, candles4hBySymbol, candles30mBySymbol, "30m");
   const updatedAt = new Date().toISOString();
 
   return {
@@ -49,23 +115,67 @@ export async function buildBinanceMarketSnapshotBundle(): Promise<BinanceMarketS
   };
 }
 
-async function fetchUniverseCandles(assets: MarketAssetSnapshot[]) {
-  const candleSets = await Promise.all(
-    assets.map(async (asset) => {
+async function fetchBinanceVolumeUniverse() {
+  const [exchangeInfo, tickers] = await Promise.all([fetchExchangeInfo(), fetchTickerRows()]);
+  const tickersBySymbol = new Map(tickers.map((ticker) => [ticker.symbol, ticker]));
+
+  return exchangeInfo
+    .filter(
+      (item) =>
+        item.status === "TRADING" &&
+        item.quoteAsset === "USDT" &&
+        item.isSpotTradingAllowed &&
+        !isExcludedBaseAsset(item.baseAsset)
+    )
+    .map((item) => {
+      const ticker = tickersBySymbol.get(item.symbol);
+      if (!ticker) return null;
+
+      return {
+        symbol: item.baseAsset,
+        marketSymbol: item.symbol,
+        rank: 0,
+        quoteVolume24h: Number(ticker.quoteVolume) || 0,
+        tradeCount24h: Number(ticker.count) || 0,
+        lastPrice: Number(ticker.lastPrice) || 0,
+        priceChange24h: Number(ticker.priceChangePercent) || 0,
+        updatedAt: new Date(Number(ticker.closeTime) || Date.now()).toISOString()
+      };
+    })
+    .filter((item): item is BinanceUniverseAsset => item !== null && item.quoteVolume24h > 0 && item.lastPrice > 0)
+    .sort((first, second) => second.quoteVolume24h - first.quoteVolume24h)
+    .slice(0, binanceUniverseSize)
+    .map((item, index) => ({
+      ...item,
+      rank: index + 1
+    }));
+}
+
+async function fetchExchangeInfo() {
+  const payload = await fetchBinanceJson("/api/v3/exchangeInfo", { permissions: "SPOT", symbolStatus: "TRADING" });
+  const rows = payload && typeof payload === "object" && "symbols" in payload ? (payload.symbols as unknown) : [];
+  return Array.isArray(rows) ? (rows as BinanceExchangeSymbol[]) : [];
+}
+
+async function fetchTickerRows() {
+  const payload = await fetchBinanceJson("/api/v3/ticker/24hr", { type: "MINI", symbolStatus: "TRADING" });
+  return Array.isArray(payload) ? (payload as BinanceTicker[]) : [];
+}
+
+async function fetchUniverseCandles(assets: BinanceUniverseAsset[]) {
+  const candleSets = await mapWithConcurrency(assets, candleFetchConcurrency, async (asset) => {
       const [thirtyMinute, fourHour] = await Promise.all([
-        fetchBinanceCandles(asset.symbol, "30m"),
-        fetchBinanceCandles(asset.symbol, "4h")
+        fetchBinanceCandles(asset.symbol, asset.marketSymbol, "30m"),
+        fetchBinanceCandles(asset.symbol, asset.marketSymbol, "4h")
       ]);
 
       return [...thirtyMinute, ...fourHour];
-    })
-  );
+    });
 
   return candleSets.flat();
 }
 
-async function fetchBinanceCandles(symbol: string, timeframe: Timeframe): Promise<OhlcvCandle[]> {
-  const marketSymbol = binanceSymbolOverrides[symbol] || `${symbol}USDT`;
+async function fetchBinanceCandles(symbol: string, marketSymbol: string, timeframe: Timeframe): Promise<OhlcvCandle[]> {
   const rows = await fetchKlineRows(marketSymbol, timeframe);
   if (!Array.isArray(rows)) return [];
 
@@ -86,53 +196,36 @@ async function fetchBinanceCandles(symbol: string, timeframe: Timeframe): Promis
 }
 
 async function fetchKlineRows(marketSymbol: string, timeframe: Timeframe): Promise<unknown[]> {
-  for (const baseUrl of binanceBaseUrls) {
-    try {
-      const url = new URL("/api/v3/klines", baseUrl);
-      url.searchParams.set("symbol", marketSymbol);
-      url.searchParams.set("interval", timeframe);
-      url.searchParams.set("limit", "160");
-
-      const response = await fetch(url, { next: { revalidate: 0 }, signal: AbortSignal.timeout(8000) });
-      if (!response.ok) continue;
-
-      const rows = (await response.json()) as unknown;
-      if (Array.isArray(rows)) return rows;
-    } catch {
-      continue;
-    }
-  }
-
-  return [];
+  const rows = await fetchBinanceJson("/api/v3/klines", { symbol: marketSymbol, interval: timeframe, limit: "160" });
+  return Array.isArray(rows) ? rows : [];
 }
 
 function buildAssetsForTimeframe(
-  mock4hAssets: MarketAssetSnapshot[],
+  universeAssets: BinanceUniverseAsset[],
   mock30mAssets: MarketAssetSnapshot[],
   candles4hBySymbol: CandleMap,
   candles30mBySymbol: CandleMap,
   timeframe: Timeframe
 ) {
-  const mock4hBySymbol = new Map(mock4hAssets.map((asset) => [asset.symbol, asset]));
   const mock30mBySymbol = new Map(mock30mAssets.map((asset) => [asset.symbol, asset]));
 
-  return mock4hAssets.map((asset4h) => {
-    const asset30m = mock30mBySymbol.get(asset4h.symbol) || asset4h;
-    const candles4h = candles4hBySymbol.get(asset4h.symbol) || [];
-    const candles30m = candles30mBySymbol.get(asset4h.symbol) || [];
+  return universeAssets.map((universeAsset) => {
+    const knownAsset = mock30mBySymbol.get(universeAsset.symbol);
+    const fallbackAsset = buildFallbackAsset(universeAsset, knownAsset);
+    const candles4h = candles4hBySymbol.get(universeAsset.symbol) || [];
+    const candles30m = candles30mBySymbol.get(universeAsset.symbol) || [];
     const has4h = candles4h.length >= 111;
     const has30m = candles30m.length >= 111;
-    const indicator4h = has4h ? deriveIndicatorValues(candles4h, "4h") : asset4h;
-    const indicator30m = has30m ? deriveIndicatorValues(candles30m, "30m") : asset30m;
+    const indicator4h = has4h ? deriveIndicatorValues(candles4h, "4h") : fallbackAsset;
+    const indicator30m = has30m ? deriveIndicatorValues(candles30m, "30m") : fallbackAsset;
     const activeIndicator = timeframe === "4h" ? indicator4h : indicator30m;
     const regime4h = getRegime4hFromValues(indicator4h.price, indicator4h.ma111, indicator4h.rsi14);
     const recommendation30m = getRecommendation30mFromValues(indicator30m.rsi14, regime4h);
-    const source = has4h || has30m ? "hybrid" : "mock";
-    const coverageStatus = has4h && has30m ? "covered" : has4h || has30m ? "partial" : "missing_pair";
+    const coverageStatus = has4h && has30m ? "covered" : has4h || has30m ? "partial" : "fetch_failed";
     const latestActiveCandle = (timeframe === "4h" ? candles4h : candles30m).at(-1);
 
     return {
-      ...asset4h,
+      ...fallbackAsset,
       timeframe,
       price: activeIndicator.price,
       priceChange24h: activeIndicator.priceChange24h,
@@ -148,9 +241,9 @@ function buildAssetsForTimeframe(
       rsi4h: indicator4h.rsi14,
       rsi30m: indicator30m.rsi14,
       signalReason: getSignalReason(indicator4h, indicator30m, regime4h, recommendation30m, coverageStatus),
-      source,
+      source: "binance",
       coverageStatus,
-      updatedAt: latestActiveCandle?.closeTime || new Date().toISOString()
+      updatedAt: latestActiveCandle?.closeTime || universeAsset.updatedAt
     } satisfies MarketAssetSnapshot;
   });
 }
@@ -159,18 +252,18 @@ function buildBreadth(rows: MarketAssetSnapshot[], timeframe: Timeframe, updated
   const ranges = [100, 200, 300] as const;
 
   return ranges.map((range) => {
-    const syntheticRows = Array.from({ length: range }, (_, index) => rows[index % rows.length]);
-    const bullishCount = syntheticRows.filter((asset) => asset.regime4h === "Bullish").length;
-    const bearishCount = syntheticRows.filter((asset) => asset.regime4h === "Bearish").length;
+    const universeRows = rows.slice(0, range);
+    const bullishCount = universeRows.filter((asset) => asset.regime4h === "Bullish").length;
+    const bearishCount = universeRows.filter((asset) => asset.regime4h === "Bearish").length;
 
     return {
       timeframe,
       universe: `Top ${range}` as const,
-      averageRsi: round(average(syntheticRows.map((asset) => asset.rsi14))),
+      averageRsi: round(average(universeRows.map((asset) => asset.rsi14))),
       bullishCount,
       bearishCount,
-      neutralCount: range - bullishCount - bearishCount,
-      coverageCount: rows.filter((asset) => asset.coverageStatus === "covered").length,
+      neutralCount: universeRows.length - bullishCount - bearishCount,
+      coverageCount: universeRows.filter((asset) => asset.coverageStatus === "covered").length,
       updatedAt
     };
   });
@@ -209,7 +302,8 @@ function getSignalReason(
   recommendation30m: MarketAssetSnapshot["recommendation30m"],
   coverageStatus: MarketAssetSnapshot["coverageStatus"]
 ) {
-  if (coverageStatus === "missing_pair") return "No Binance USDT pair found yet; retained in coverage as missing pair.";
+  if (coverageStatus === "fetch_failed") return "Binance pair is in the volume universe, but candle fetch did not return enough history yet.";
+  if (coverageStatus === "partial") return "Binance candle coverage is partial; signal uses available timeframe data.";
   if (recommendation30m === "Long/Buy") return `4h bullish; Binance 30m RSI ${indicator30m.rsi14.toFixed(1)} is below 35.`;
   if (recommendation30m === "Short/Sell") return `4h bearish; Binance 30m RSI ${indicator30m.rsi14.toFixed(1)} is above 70.`;
   if (regime4h === "Bullish") return "4h bullish from Binance candles; waiting for 30m RSI below 35.";
@@ -220,4 +314,79 @@ function getSignalReason(
 function average(values: number[]) {
   if (values.length === 0) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+async function fetchBinanceJson(path: string, params: Record<string, string>) {
+  for (const baseUrl of binanceBaseUrls) {
+    try {
+      const url = new URL(path, baseUrl);
+      for (const [key, value] of Object.entries(params)) {
+        url.searchParams.set(key, value);
+      }
+
+      const response = await fetch(url, { next: { revalidate: 0 }, signal: AbortSignal.timeout(12000) });
+      if (!response.ok) continue;
+      return (await response.json()) as unknown;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+function buildFallbackAsset(universeAsset: BinanceUniverseAsset, knownAsset?: MarketAssetSnapshot): MarketAssetSnapshot {
+  return {
+    id: `binance-${universeAsset.symbol.toLowerCase()}`,
+    sourceAssetId: universeAsset.symbol,
+    cmcId: null,
+    symbol: universeAsset.symbol,
+    name: knownAsset?.name || universeAsset.symbol,
+    rank: universeAsset.rank,
+    rankBasis: "binance_quote_volume_24h",
+    quoteVolume24h: round(universeAsset.quoteVolume24h),
+    tradeCount24h: universeAsset.tradeCount24h,
+    blacklistStatus: "allowed",
+    chain: knownAsset?.chain || "Unclassified",
+    sectors: knownAsset?.sectors || ["Unclassified"],
+    source: "binance",
+    timeframe: "30m",
+    price: universeAsset.lastPrice,
+    priceChange24h: round(universeAsset.priceChange24h),
+    volumeChange24h: 0,
+    rsi14: 50,
+    ma111: universeAsset.lastPrice,
+    maDistancePct: 0,
+    regime4h: "Neutral",
+    recommendation30m: "Wait",
+    price4h: universeAsset.lastPrice,
+    ma1114h: universeAsset.lastPrice,
+    maDistance4hPct: 0,
+    rsi4h: 50,
+    rsi30m: 50,
+    signalReason: "Waiting for Binance candle coverage.",
+    coverageStatus: "fetch_failed",
+    updatedAt: universeAsset.updatedAt
+  };
+}
+
+async function mapWithConcurrency<T, R>(items: T[], concurrency: number, mapper: (item: T) => Promise<R>) {
+  const results: R[] = [];
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await mapper(items[index]);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
+  return results;
+}
+
+function isExcludedBaseAsset(baseAsset: string) {
+  const normalized = baseAsset.toUpperCase();
+  return excludedBaseAssets.has(normalized);
 }

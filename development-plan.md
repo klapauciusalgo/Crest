@@ -6,7 +6,7 @@ Crest is a professional cryptocurrency analytics terminal for analysts who need 
 
 The product is not a landing page, retail crypto app, or general AI chatbot. It is a terminal-style market workstation with three primary surfaces:
 
-- Real-time asset grid for the top 300 cryptocurrencies by market cap.
+- Real-time asset grid for the top 300 Binance USDT spot assets by 24h transaction volume.
 - Chain and sector intelligence panels for comparing native-chain strength, category strength, and volume behavior.
 - Bottom-drawer AI assistant that answers questions using only the current filtered data snapshot.
 
@@ -16,17 +16,18 @@ The canonical product name is **Crest**.
 
 ### 2.1 Market Data
 
-- Track the top 300 cryptocurrencies by market cap.
+- Track the top 300 Binance USDT spot assets by 24h transaction volume (`quoteVolume`), excluding stable coins and tokenized stock via a curated blacklist.
 - Refresh market snapshots by timeframe cadence rather than a universal 60 second loop:
   - `30m` snapshots refresh after each 30 minute candle closes.
   - `4h` snapshots refresh after each 4 hour candle closes.
-- Use CoinMarketCap as the primary identity, ranking, metadata, and sector/category source.
-- Use exchange APIs as the primary OHLCV source, with explicit coverage status for assets that do not have a usable exchange pair.
+- Use Binance as the primary v1 identity, ranking, transaction-volume, and OHLCV source.
+- Treat CoinMarketCap as a future optional enrichment source for sector/category metadata, not the v1 ranking dependency.
 - Normalize every asset into internal `chain` and `sectors` fields. A single asset may belong to multiple sectors, for example `DeFi` and `DEX`.
 - Compute indicators server-side:
   - RSI(14)
   - MA111
-  - 24h volume delta
+- 24h volume delta
+- 24h Binance USDT quote volume
   - 24h price delta
   - Distance from MA111: `((price - ma111) / ma111) * 100`
 - Support two timeframes:
@@ -44,6 +45,7 @@ Each visible asset row must include:
 - 24h price change percentage.
 - RSI(14) with micro gauge.
 - 24h volume change percentage.
+- 24h transaction volume in USDT.
 - Native chain label.
 - MA111 value.
 - Distance from MA111 percentage.

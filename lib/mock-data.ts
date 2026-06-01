@@ -1,7 +1,17 @@
 export type Timeframe = "30m" | "4h";
 
-export type ChainKey = "ETH" | "BSC" | "SOL" | "BASE" | "ARB" | "AVAX" | "MATIC" | "TON";
-export type SectorKey = "Layer 1" | "DeFi" | "AI" | "CEX" | "DEX" | "Perps" | "Meme" | "Yield" | "Infra";
+export type ChainKey = "ETH" | "BSC" | "SOL" | "BASE" | "ARB" | "AVAX" | "MATIC" | "TON" | "Unclassified";
+export type SectorKey =
+  | "Layer 1"
+  | "DeFi"
+  | "AI"
+  | "CEX"
+  | "DEX"
+  | "Perps"
+  | "Meme"
+  | "Yield"
+  | "Infra"
+  | "Unclassified";
 
 export type AssetRow = {
   symbol: string;
@@ -28,6 +38,15 @@ export type AssetSignalRow = AssetRow & {
   rsi4h: number;
   rsi30m: number;
   signalReason: string;
+  sourceAssetId?: string;
+  cmcId?: number | null;
+  rank?: number;
+  rankBasis?: "cmc_market_cap" | "binance_quote_volume_24h" | "mock";
+  quoteVolume24h?: number;
+  tradeCount24h?: number;
+  blacklistStatus?: "allowed" | "excluded" | "unknown";
+  source?: string;
+  coverageStatus?: string;
 };
 
 export type ChainProjectDetail = AssetSignalRow & {
@@ -53,7 +72,8 @@ export const chainColors: Record<ChainKey, string> = {
   ARB: "#4FC1FF",
   AVAX: "#E84142",
   MATIC: "#8247E5",
-  TON: "#0098EA"
+  TON: "#0098EA",
+  Unclassified: "#6B7280"
 };
 
 export const sectorColors: Record<SectorKey, string> = {
@@ -65,7 +85,8 @@ export const sectorColors: Record<SectorKey, string> = {
   Perps: "#FF8C42",
   Meme: "#FF6B8A",
   Yield: "#3DD68C",
-  Infra: "#8D93A6"
+  Infra: "#8D93A6",
+  Unclassified: "#6B7280"
 };
 
 const baseAssets: AssetRow[] = [

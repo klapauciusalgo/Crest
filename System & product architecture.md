@@ -1,10 +1,10 @@
 You are a senior full-stack architect and product designer specializing in real-time financial data platforms. Design and build a cryptocurrency analytics web application named "Crest" with the following precise specifications:
 
 CORE DATA SYSTEM
-- Track top 300 cryptocurrencies by market cap, refreshed by timeframe cadence instead of a universal 60 second loop
-- Identity/ranking/metadata source: CoinMarketCap listings and metadata endpoints
-- OHLCV source: exchange APIs where pairs exist, with per-asset coverage status for missing listings
-- Sector/category source: CoinMarketCap category metadata first, with provider adapters kept replaceable
+- Track top 300 Binance USDT spot assets by 24h transaction volume, refreshed by timeframe cadence instead of a universal 60 second loop
+- Identity/ranking source: Binance Spot exchangeInfo + 24h ticker quoteVolume, excluding stable coins and tokenized stock through a curated blacklist
+- OHLCV source: Binance klines, with per-asset coverage status for incomplete candle history
+- Sector/category source: curated internal metadata where available, with unknown assets grouped as Unclassified and provider adapters kept replaceable
 - Normalize sectors into internal labels such as DeFi, AI, CEX, DEX, Perps, Meme, Yield, Infra, and Layer 1
 - Compute server-side: RSI(14), MA111, volume delta 24h, price delta 24h
 - Store computed indicators in Supabase Postgres market snapshot rows, refreshed after candle close per timeframe
@@ -16,6 +16,7 @@ DATA COLUMNS PER ASSET
 2. Price change % in 24h (colored: green positive, red negative)
 3. RSI(14) — with visual gauge: oversold <30, neutral 30–70, overbought >70
 4. Volume change % in 24h
+4a. 24h transaction volume in USDT
 5. Chain label (ETH, BSC, SOL, BASE, ARB, AVAX, MATIC, TON, etc.)
 6. Sector tags (DeFi, AI, CEX, DEX, Perps, Meme, Yield, Infra, Layer 1)
 7. MA111 value

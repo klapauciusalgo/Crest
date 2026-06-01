@@ -14,13 +14,15 @@ type SupabaseProviderMode = "auto" | "mock" | "supabase";
 
 type MarketAssetRecord = {
   id: string;
-  cmc_id: number;
+  cmc_id: number | null;
+  source_asset_id: string;
   symbol: string;
   name: string;
   rank: number;
   chain: string;
   sectors: string[] | null;
   source: string;
+  metadata: Record<string, unknown> | null;
 };
 
 type MarketSnapshotRecord = {
@@ -152,16 +154,19 @@ async function readAssetSnapshots(client: SupabaseClient, timeframe: Timeframe) 
         market_assets (
           id,
           cmc_id,
+          source_asset_id,
           symbol,
           name,
           rank,
           chain,
           sectors,
-          source
+          source,
+          metadata
         )
       `
     )
     .eq("timeframe", timeframe)
+    .eq("source", "binance")
     .limit(300);
 
   if (error) throw error;
@@ -184,10 +189,15 @@ function mapAssetSnapshot(row: MarketSnapshotRecord): MarketAssetSnapshot {
 
   return {
     id: asset.id,
+    sourceAssetId: asset.source_asset_id || asset.symbol,
     cmcId: asset.cmc_id,
     symbol: asset.symbol,
     name: asset.name,
     rank: asset.rank,
+    rankBasis: toRankBasis(asset.metadata?.rank_basis),
+    quoteVolume24h: toNumber(asset.metadata?.quote_volume_24h || 0),
+    tradeCount24h: toNumber(asset.metadata?.trade_count_24h || 0),
+    blacklistStatus: toBlacklistStatus(asset.metadata?.blacklist_status),
     chain: asset.chain,
     sectors: asset.sectors || [],
     source: toMarketDataSource(row.source || asset.source),
@@ -265,7 +275,7 @@ function getUniverseSize(universe: MarketBreadthSnapshot["universe"]) {
   return Number(universe.replace("Top ", ""));
 }
 
-function toNumber(value: string | number) {
+function toNumber(value: unknown) {
   return typeof value === "number" ? value : Number(value);
 }
 
@@ -276,6 +286,16 @@ function toTimeframe(value: string): Timeframe {
 function toMarketDataSource(value: string): MarketDataSource {
   if (value === "coinmarketcap" || value === "binance" || value === "hybrid") return value;
   return "mock";
+}
+
+function toRankBasis(value: unknown): MarketAssetSnapshot["rankBasis"] {
+  if (value === "binance_quote_volume_24h" || value === "cmc_market_cap") return value;
+  return "mock";
+}
+
+function toBlacklistStatus(value: unknown): MarketAssetSnapshot["blacklistStatus"] {
+  if (value === "allowed" || value === "excluded") return value;
+  return "unknown";
 }
 
 function toCoverageStatus(value: string): AssetCoverageStatus {

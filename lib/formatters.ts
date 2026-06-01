@@ -14,3 +14,10 @@ export function formatPct(value: number) {
   const sign = value > 0 ? "+" : "";
   return `${sign}${value.toFixed(2)}%`;
 }
+
+export function formatCompactDollar(value: number) {
+  return `$${Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1
+  }).format(value)}`;
+}

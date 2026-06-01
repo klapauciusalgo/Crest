@@ -5,10 +5,15 @@ export type MarketDataSource = "mock" | "coinmarketcap" | "binance" | "hybrid";
 
 export type MarketUniverseAsset = {
   id: string;
-  cmcId: number;
+  sourceAssetId: string;
+  cmcId?: number | null;
   symbol: string;
   name: string;
   rank: number;
+  rankBasis: "cmc_market_cap" | "binance_quote_volume_24h" | "mock";
+  quoteVolume24h: number;
+  tradeCount24h: number;
+  blacklistStatus: "allowed" | "excluded" | "unknown";
   chain: ChainKey | string;
   sectors: Array<SectorKey | string>;
   source: MarketDataSource;

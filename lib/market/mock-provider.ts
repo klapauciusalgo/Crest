@@ -28,8 +28,13 @@ export function getMockMarketSnapshot(timeframe: Timeframe): MarketSnapshot {
     ...asset,
     timeframe,
     id: `mock-${asset.symbol.toLowerCase()}`,
+    sourceAssetId: asset.symbol,
     cmcId: index + 1,
     rank: index + 1,
+    rankBasis: "mock",
+    quoteVolume24h: 0,
+    tradeCount24h: 0,
+    blacklistStatus: "allowed",
     source: "mock",
     coverageStatus: "covered",
     updatedAt
