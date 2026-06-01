@@ -42,7 +42,7 @@
 - [x] Binance OHLCV ingestion adapter added for 30m and 4h candles.
 - [x] Protected Binance ingestion endpoint added for manual/cron refresh.
 - [x] Supabase OHLCV candle persistence added.
-- [x] Vercel Cron market refresh route added with 30m cadence and 4h boundary refresh.
+- [x] Vercel Cron market refresh route added with Hobby-safe daily schedule.
 
 ## In Progress
 
@@ -52,6 +52,7 @@
 
 - [ ] Wire terminal UI to the API data source behind a feature flag.
 - [ ] Add CoinMarketCap metadata/ranking adapter once API key is available.
+- [ ] Upgrade Vercel to Pro or add an external scheduler for true 30m/4h refresh cadence.
 - [ ] AI provider abstraction and mock-to-live SSE route.
 
 ## Backlog

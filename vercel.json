@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/cron/market-refresh",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
