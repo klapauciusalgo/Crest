@@ -45,6 +45,7 @@
 - [x] Vercel Cron market refresh route added with Hobby-safe daily schedule.
 - [x] Terminal UI wired to the live market API with mock fallback.
 - [x] AI context now includes market data source, freshness, and coverage status.
+- [x] Supabase Cron scheduled market refresh every 30 minutes.
 
 ## In Progress
 
@@ -53,7 +54,7 @@
 ## Next
 
 - [ ] Add CoinMarketCap metadata/ranking adapter once API key is available.
-- [ ] Upgrade Vercel to Pro or add an external scheduler for true 30m/4h refresh cadence.
+- [ ] Monitor Supabase Cron run history after the next 30-minute boundary.
 - [ ] AI provider abstraction and mock-to-live SSE route.
 
 ## Backlog
