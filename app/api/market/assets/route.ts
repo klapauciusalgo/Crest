@@ -9,6 +9,7 @@ export async function GET(request: Request) {
 
   return Response.json({
     data: snapshot.assets,
+    breadth: snapshot.breadth,
     freshness: snapshot.freshness,
     pagination: {
       totalRows: snapshot.assets.length

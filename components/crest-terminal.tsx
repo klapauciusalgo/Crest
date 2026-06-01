@@ -65,8 +65,37 @@ type MarketBreadthSummary = {
   bullishPct: number;
   bearishPct: number;
 };
+type MarketApiBreadth = {
+  universe: MarketBreadthSummary["range"];
+  averageRsi: number;
+  bullishCount: number;
+  bearishCount: number;
+  neutralCount: number;
+};
+type MarketFreshness = {
+  timeframe: Timeframe;
+  source: string;
+  updatedAt: string;
+  isStale: boolean;
+  coverage: {
+    covered: number;
+    total: number;
+  };
+};
+type MarketApiResponse = {
+  data: AssetSignalRow[];
+  breadth?: MarketApiBreadth[];
+  freshness?: MarketFreshness;
+};
+type MarketLoadStatus = "loading" | "live" | "fallback";
 type AiContextSnapshot = {
   timeframe: Timeframe;
+  dataStatus: {
+    source: string;
+    loadStatus: MarketLoadStatus;
+    lastUpdated: string | null;
+    coverage: string;
+  };
   activePreset: string;
   filterState: {
     chains: ChainKey[];
@@ -170,6 +199,13 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const [chainDetails, setChainDetails] = useState<ChainProjectDetail[]>([]);
   const [sectorDetails, setSectorDetails] = useState<ChainProjectDetail[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [remoteAssets, setRemoteAssets] = useState<Partial<Record<Timeframe, AssetSignalRow[]>>>({});
+  const [remoteBreadth, setRemoteBreadth] = useState<Partial<Record<Timeframe, MarketBreadthSummary[]>>>({});
+  const [freshness, setFreshness] = useState<Partial<Record<Timeframe, MarketFreshness>>>({});
+  const [marketStatus, setMarketStatus] = useState<Record<Timeframe, MarketLoadStatus>>({
+    "30m": "loading",
+    "4h": "loading"
+  });
   const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([
     { name: "BSC oversold", chains: ["BSC"], rsi: [0, 35], ma: [-20, 0] },
     { name: "MA111 support", chains: allChains, rsi: [20, 55], ma: [-5, 1] }
@@ -179,10 +215,14 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const assets4h = useMemo(() => getMockAssets("4h"), []);
   const assets30m = useMemo(() => getMockAssets("30m"), []);
   const activeTimeframeAssets = timeframe === "4h" ? assets4h : assets30m;
-  const sourceAssets = useMemo(
+  const mockSourceAssets = useMemo(
     () => enrichAssetsWithSignals(activeTimeframeAssets, assets4h, assets30m),
     [activeTimeframeAssets, assets4h, assets30m]
   );
+  const sourceAssets = remoteAssets[timeframe] || mockSourceAssets;
+  const activeFreshness = freshness[timeframe];
+  const activeMarketStatus = marketStatus[timeframe];
+  const marketStatusLabel = getMarketStatusLabel(activeMarketStatus, activeFreshness);
   const filteredAssets = useMemo(() => {
     const rows = sourceAssets.filter(
       (asset) =>
@@ -205,10 +245,19 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   }, [currentPage, filteredAssets]);
   const visibleTickers = useMemo(() => paginatedAssets.map((asset) => asset.symbol), [paginatedAssets]);
   const signalSummary = useMemo(() => getSignalSummary(filteredAssets), [filteredAssets]);
-  const marketBreadth = useMemo(() => getMarketBreadth(sourceAssets), [sourceAssets]);
+  const marketBreadth = useMemo(
+    () => remoteBreadth[timeframe] || getMarketBreadth(sourceAssets),
+    [remoteBreadth, sourceAssets, timeframe]
+  );
   const aiContext = useMemo<AiContextSnapshot>(
     () => ({
       timeframe,
+      dataStatus: {
+        source: activeFreshness?.source || (activeMarketStatus === "fallback" ? "mock" : "loading"),
+        loadStatus: activeMarketStatus,
+        lastUpdated: activeFreshness?.updatedAt || null,
+        coverage: activeFreshness ? `${activeFreshness.coverage.covered}/${activeFreshness.coverage.total}` : "0/0"
+      },
       activePreset,
       filterState: {
         chains: selectedChains,
@@ -244,6 +293,8 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
     }),
     [
       activePreset,
+      activeFreshness,
+      activeMarketStatus,
       chainDetailStatus,
       chainDetails,
       chainSummaries,
@@ -267,6 +318,59 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
       timeframe
     ]
   );
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    setMarketStatus((current) => ({
+      ...current,
+      [timeframe]: "loading"
+    }));
+
+    fetch(`/api/market/assets?timeframe=${timeframe}`, {
+      cache: "no-store",
+      signal: controller.signal
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Market API returned ${response.status}`);
+        }
+        return response.json() as Promise<MarketApiResponse>;
+      })
+      .then((payload) => {
+        setRemoteAssets((current) => ({
+          ...current,
+          [timeframe]: payload.data.map(normalizeApiAsset)
+        }));
+        setRemoteBreadth((current) => ({
+          ...current,
+          [timeframe]: mapApiBreadth(payload.breadth || [])
+        }));
+        if (payload.freshness) {
+          setFreshness((current) => ({
+            ...current,
+            [timeframe]: payload.freshness
+          }));
+        }
+        setMarketStatus((current) => ({
+          ...current,
+          [timeframe]: "live"
+        }));
+      })
+      .catch((error: Error) => {
+        if (error.name === "AbortError") {
+          return;
+        }
+
+        console.warn("[crest] Dashboard fell back to mock data.", error.message);
+        setMarketStatus((current) => ({
+          ...current,
+          [timeframe]: "fallback"
+        }));
+      });
+
+    return () => controller.abort();
+  }, [timeframe]);
 
   useEffect(() => {
     setChainDetailStatus("loading");
@@ -395,7 +499,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
               <p className="micro-label">Filtered View</p>
               <strong>{filteredAssets.length} assets</strong>
             </div>
-            <span className="live-dot">Live mock</span>
+            <span className={`live-dot ${activeMarketStatus}`}>{marketStatusLabel}</span>
           </div>
 
           <div className="rail-section chain-filter-section">
@@ -1090,6 +1194,7 @@ function AiDrawer({
       },
       sort: context.sort,
       pagination: context.pagination,
+      data_status: context.dataStatus,
       multi_timeframe_rules: multiTimeframeRules,
       market_breadth: context.marketBreadth,
       signal_summary: context.signalSummary,
@@ -1259,7 +1364,69 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
+function normalizeApiAsset(asset: AssetSignalRow): AssetSignalRow {
+  return {
+    ...asset,
+    chain: normalizeChain(asset.chain),
+    sectors: asset.sectors.map(normalizeSector)
+  };
+}
+
+function normalizeChain(value: string): ChainKey {
+  return allChains.includes(value as ChainKey) ? (value as ChainKey) : "ETH";
+}
+
+function normalizeSector(value: string): SectorKey {
+  return Object.keys(sectorColors).includes(value) ? (value as SectorKey) : "Infra";
+}
+
+function mapApiBreadth(rows: MarketApiBreadth[]): MarketBreadthSummary[] {
+  return rows.map((row) => {
+    const total = row.bullishCount + row.bearishCount + row.neutralCount || 1;
+
+    return {
+      range: row.universe,
+      averageRsi: row.averageRsi,
+      bullishCount: row.bullishCount,
+      bearishCount: row.bearishCount,
+      neutralCount: row.neutralCount,
+      bullishPct: Math.round((row.bullishCount / total) * 100),
+      bearishPct: Math.round((row.bearishCount / total) * 100)
+    };
+  });
+}
+
+function getMarketStatusLabel(status: MarketLoadStatus, freshness?: MarketFreshness) {
+  if (status === "loading") return "Loading market";
+  if (status === "fallback") return "Mock fallback";
+
+  const label = freshness?.source === "hybrid" ? "Live Binance" : `Live ${freshness?.source || "market"}`;
+  const updated = freshness?.updatedAt ? formatLastUpdate(freshness.updatedAt) : "";
+  const coverage = freshness ? `${freshness.coverage.covered}/${freshness.coverage.total}` : "";
+  return [label, coverage, updated].filter(Boolean).join(" · ");
+}
+
+function formatLastUpdate(value: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Jakarta"
+  }).format(new Date(value));
+}
+
 function getMarketBreadth(rows: AssetSignalRow[]): MarketBreadthSummary[] {
+  if (rows.length === 0) {
+    return ([100, 200, 300] as const).map((range) => ({
+      range: `Top ${range}` as MarketBreadthSummary["range"],
+      averageRsi: 0,
+      bullishCount: 0,
+      bearishCount: 0,
+      neutralCount: 0,
+      bullishPct: 0,
+      bearishPct: 0
+    }));
+  }
+
   return ([100, 200, 300] as const).map((range) => {
     const syntheticRows = Array.from({ length: range }, (_, index) => {
       const base = rows[index % rows.length];
