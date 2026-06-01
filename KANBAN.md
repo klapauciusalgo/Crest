@@ -26,17 +26,20 @@
 - [x] Mock market provider exposed through Next.js API routes.
 - [x] Indicator helper module added for RSI, MA111, 4h regime, and 30m setup signals.
 - [x] Market freshness and breadth API contracts added.
+- [x] Supabase local project config initialized.
+- [x] Supabase market snapshot schema migration drafted with RLS policies.
+- [x] User-owned tables drafted for presets, pinned assets, AI threads, and AI context history.
 
 ## In Progress
 
 - [ ] Connect Vercel project to the GitHub repository integration.
-- [ ] Backend Phase 2: Supabase schema, migrations, and RLS policies.
+- [ ] Backend Phase 3: Supabase client wiring and snapshot repository layer.
 
 ## Next
 
 - [ ] Wire terminal UI to the API data source behind a feature flag.
 - [ ] Supabase project linkage and environment variable plan.
-- [ ] Supabase schema and RLS migration draft.
+- [ ] Apply and verify migration against a linked Supabase project or local Docker stack.
 - [ ] Market data provider adapter.
 - [ ] CoinMarketCap metadata/ranking adapter.
 - [ ] Exchange OHLCV adapter for 30m and 4h candles.
