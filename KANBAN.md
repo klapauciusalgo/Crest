@@ -50,23 +50,32 @@
 - [x] Supabase asset identity migrated from CMC-only to source/source asset identity.
 - [x] Terminal market grid search, updated-at status, clearer filter label, and polished chain fallback labels added.
 - [x] Binance asset metadata resolver expanded for native chain and sector classification.
+- [x] Market grid pagination added with 20-row pages.
+- [x] Multi-timeframe regime and 30m setup columns added to terminal UI.
+- [x] Market breadth cards added for Top 100, Top 200, and Top 300 with average RSI and regime distribution.
+- [x] Market grid sorting UI stabilized with fixed column layout, reserved sort indicators, and browser verification.
+- [x] Production deployment refreshed after latest terminal UI polish.
 
 ## In Progress
 
-- [ ] Backend Phase 4: Binance Top 300 volume ingestion rollout and verification.
+- [ ] Backend Phase 4 hardening: Binance Top 300 volume ingestion monitoring and edge-case verification.
 
 ## Next
 
 - [ ] Add optional metadata enrichment for chain/sector classification.
 - [ ] Monitor Supabase Cron run history after the next 30-minute boundary.
 - [ ] AI provider abstraction and mock-to-live SSE route.
+- [ ] Persist pinned assets and saved filter presets through Supabase user tables.
+- [ ] Add Playwright smoke tests for the signed-out entry, terminal journey, filters, search, pagination, and AI drawer.
 
 ## Backlog
 
 - [ ] X OAuth through Supabase Auth.
 - [ ] SIWE wallet authentication.
-- [ ] Persisted saved filter presets.
-- [ ] Persisted pinned assets.
 - [ ] Admin AI provider encryption.
 - [ ] Provider fallback chain.
+- [ ] Admin role enforcement for `/admin/ai-config` and admin APIs.
+- [ ] Supabase Realtime subscription/reconnect strategy for market snapshot updates.
 - [ ] Production observability.
+- [ ] CI workflow for typecheck, build, lint, and smoke tests.
+- [ ] External metadata enrichment source for better chain/sector coverage beyond the curated resolver.
