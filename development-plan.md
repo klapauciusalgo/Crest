@@ -17,9 +17,11 @@ The canonical product name is **Crest**.
 ### 2.1 Market Data
 
 - Track the top 300 cryptocurrencies by market cap.
-- Refresh real-time asset data every 60 seconds through Supabase Realtime delivery to the frontend.
-- Use CoinGecko Pro API or a CCXT-based aggregator as the upstream market source.
-- Use CoinGecko Pro category endpoints or CoinMarketCap category endpoints as upstream sources for sector metadata and sector constituent lists.
+- Refresh market snapshots by timeframe cadence rather than a universal 60 second loop:
+  - `30m` snapshots refresh after each 30 minute candle closes.
+  - `4h` snapshots refresh after each 4 hour candle closes.
+- Use CoinMarketCap as the primary identity, ranking, metadata, and sector/category source.
+- Use exchange APIs as the primary OHLCV source, with explicit coverage status for assets that do not have a usable exchange pair.
 - Normalize every asset into internal `chain` and `sectors` fields. A single asset may belong to multiple sectors, for example `DeFi` and `DEX`.
 - Compute indicators server-side:
   - RSI(14)
@@ -31,7 +33,8 @@ The canonical product name is **Crest**.
   - `30m`
   - `4h`
 - Timeframe changes must affect all computed columns and update without a page reload.
-- Store computed indicators as fresh Supabase snapshots, overwritten every 60 seconds per asset per timeframe.
+- Store computed indicators as fresh Supabase snapshots, overwritten per asset after each timeframe refresh.
+- Expose `lastUpdatedAt`, staleness, provider source, and coverage counts to the frontend and AI context.
 
 ### 2.2 Asset Grid
 

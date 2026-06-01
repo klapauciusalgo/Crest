@@ -1,11 +1,14 @@
 You are a senior full-stack architect and product designer specializing in real-time financial data platforms. Design and build a cryptocurrency analytics web application named "Crest" with the following precise specifications:
 
 CORE DATA SYSTEM
-- Track top 300 cryptocurrencies by market cap, refreshed every 60 seconds via Supabase Realtime
-- Data source: CoinGecko Pro API or CCXT aggregator
-- Sector/category source: CoinGecko category endpoints or CoinMarketCap category endpoints, normalized into internal sectors such as DeFi, AI, CEX, DEX, Perps, Meme, Yield, Infra, and Layer 1
+- Track top 300 cryptocurrencies by market cap, refreshed by timeframe cadence instead of a universal 60 second loop
+- Identity/ranking/metadata source: CoinMarketCap listings and metadata endpoints
+- OHLCV source: exchange APIs where pairs exist, with per-asset coverage status for missing listings
+- Sector/category source: CoinMarketCap category metadata first, with provider adapters kept replaceable
+- Normalize sectors into internal labels such as DeFi, AI, CEX, DEX, Perps, Meme, Yield, Infra, and Layer 1
 - Compute server-side: RSI(14), MA111, volume delta 24h, price delta 24h
-- Store computed indicators in Supabase Postgres market snapshot rows, refreshed every 60s per asset per timeframe
+- Store computed indicators in Supabase Postgres market snapshot rows, refreshed after candle close per timeframe
+- Refresh 30m snapshots every 30 minutes and 4h snapshots every 4 hours, with last update timestamps exposed to the UI
 - Support two timeframes: 30 minutes (30m) and 4 hours (4h), switchable without page reload
 
 DATA COLUMNS PER ASSET

@@ -22,19 +22,24 @@
 - [x] Multi-chain selector moved above intelligence panel so it is always reachable.
 - [x] AI drawer now receives full market context snapshot for future SSE requests.
 - [x] Chain detail panel repositioned so selected-chain details are visible with multi-chain controls at normal zoom.
+- [x] Backend Phase 1 started with typed market data contracts.
+- [x] Mock market provider exposed through Next.js API routes.
+- [x] Indicator helper module added for RSI, MA111, 4h regime, and 30m setup signals.
+- [x] Market freshness and breadth API contracts added.
 
 ## In Progress
 
 - [ ] Connect Vercel project to the GitHub repository integration.
-- [ ] Continue terminal dashboard visual polish after user review.
+- [ ] Backend Phase 2: Supabase schema, migrations, and RLS policies.
 
 ## Next
 
-- [ ] Replace local mock adapters with typed data adapter boundaries.
+- [ ] Wire terminal UI to the API data source behind a feature flag.
 - [ ] Supabase project linkage and environment variable plan.
 - [ ] Supabase schema and RLS migration draft.
 - [ ] Market data provider adapter.
-- [ ] Indicator engine for RSI(14), MA111, and MA distance.
+- [ ] CoinMarketCap metadata/ranking adapter.
+- [ ] Exchange OHLCV adapter for 30m and 4h candles.
 - [ ] AI provider abstraction and mock-to-live SSE route.
 
 ## Backlog
