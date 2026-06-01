@@ -39,18 +39,18 @@
 - [x] Production Vercel runtime connected to Supabase with server-side secret.
 - [x] Backend Phase 4 started with protected Supabase market seed endpoint.
 - [x] Market snapshot writer can upsert assets, snapshots, breadth, and group summaries.
+- [x] Binance OHLCV ingestion adapter added for 30m and 4h candles.
+- [x] Protected Binance ingestion endpoint added for manual/cron refresh.
+- [x] Supabase OHLCV candle persistence added.
 
 ## In Progress
 
-- [ ] Backend Phase 4: Market ingestion adapters for CMC metadata and exchange OHLCV.
+- [ ] Backend Phase 4: CoinMarketCap metadata/ranking adapter.
 
 ## Next
 
 - [ ] Wire terminal UI to the API data source behind a feature flag.
-- [ ] Seed Supabase market snapshots and verify API reads through Supabase path.
-- [ ] Add Supabase anon or service key to Vercel environment variables.
-- [ ] CoinMarketCap metadata/ranking adapter.
-- [ ] Exchange OHLCV adapter for 30m and 4h candles.
+- [ ] Add CoinMarketCap metadata/ranking adapter once API key is available.
 - [ ] AI provider abstraction and mock-to-live SSE route.
 
 ## Backlog

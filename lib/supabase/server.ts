@@ -37,6 +37,13 @@ export function getSupabaseServerClient(): SupabaseClient | null {
       auth: {
         autoRefreshToken: false,
         persistSession: false
+      },
+      global: {
+        fetch: (input, init) =>
+          fetch(input, {
+            ...init,
+            cache: "no-store"
+          })
       }
     });
     cachedConfigKey = configKey;

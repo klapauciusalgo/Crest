@@ -1,12 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient, getSupabaseServerConfig } from "@/lib/supabase/server";
-import type { MarketAssetSnapshot, MarketSnapshot } from "@/lib/market/types";
+import type { MarketAssetSnapshot, MarketSnapshot, OhlcvCandle } from "@/lib/market/types";
 
 type AssetIdMap = Map<number, string>;
 
 export type MarketSnapshotWriteResult = {
   assets: number;
   breadth: number;
+  candles?: number;
   groupSnapshots: number;
   timeframe: MarketSnapshot["timeframe"];
 };
@@ -35,6 +36,56 @@ export async function writeMarketSnapshotToSupabase(snapshot: MarketSnapshot): P
     groupSnapshots: groupSnapshotCount,
     timeframe: snapshot.timeframe
   };
+}
+
+export async function writeOhlcvCandlesToSupabase(candles: OhlcvCandle[]): Promise<number> {
+  const config = getSupabaseServerConfig();
+  const client = getSupabaseServerClient();
+
+  if (!client || !config) {
+    throw new Error("Supabase env is missing.");
+  }
+
+  if (config.keySource !== "service_role") {
+    throw new Error("Supabase writes require SUPABASE_SERVICE_ROLE_KEY.");
+  }
+
+  if (candles.length === 0) return 0;
+
+  const symbols = Array.from(new Set(candles.map((candle) => candle.symbol)));
+  const { data: assets, error: assetError } = await client.from("market_assets").select("id, symbol").in("symbol", symbols);
+  if (assetError) throw assetError;
+
+  const assetIdsBySymbol = new Map((assets || []).map((asset: { id: string; symbol: string }) => [asset.symbol, asset.id]));
+  const rows = candles
+    .map((candle) => {
+      const assetId = assetIdsBySymbol.get(candle.symbol);
+      if (!assetId) return null;
+
+      return {
+        asset_id: assetId,
+        timeframe: candle.timeframe,
+        open_time: candle.openTime,
+        close_time: candle.closeTime,
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+        volume: candle.volume,
+        source: candle.source,
+        ingested_at: new Date().toISOString()
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => Boolean(row));
+
+  for (let index = 0; index < rows.length; index += 500) {
+    const { error } = await client
+      .from("ohlcv_candles")
+      .upsert(rows.slice(index, index + 500), { onConflict: "asset_id,timeframe,open_time,source" });
+    if (error) throw error;
+  }
+
+  return rows.length;
 }
 
 async function upsertAssets(client: SupabaseClient, assets: MarketAssetSnapshot[]): Promise<AssetIdMap> {
