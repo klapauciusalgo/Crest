@@ -29,6 +29,9 @@
 - [x] Supabase local project config initialized.
 - [x] Supabase market snapshot schema migration drafted with RLS policies.
 - [x] User-owned tables drafted for presets, pinned assets, AI threads, and AI context history.
+- [x] Supabase migrations applied to the remote project.
+- [x] Client table grants hardened after remote privilege audit.
+- [x] Supabase security advisor passes with no warning-level findings.
 
 ## In Progress
 
@@ -39,7 +42,6 @@
 
 - [ ] Wire terminal UI to the API data source behind a feature flag.
 - [ ] Supabase project linkage and environment variable plan.
-- [ ] Apply and verify migration against a linked Supabase project or local Docker stack.
 - [ ] Market data provider adapter.
 - [ ] CoinMarketCap metadata/ranking adapter.
 - [ ] Exchange OHLCV adapter for 30m and 4h candles.
