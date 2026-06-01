@@ -25,6 +25,7 @@ export async function writeMarketSnapshotToSupabase(snapshot: MarketSnapshot): P
   }
 
   const assetIdMap = await upsertAssets(client, snapshot.assets);
+  await deleteExistingMarketSnapshots(client, snapshot);
   await upsertMarketSnapshots(client, snapshot, assetIdMap);
   await upsertBreadth(client, snapshot);
   const groupSnapshotCount = await upsertGroupSnapshots(client, snapshot);
@@ -123,6 +124,16 @@ async function upsertAssets(client: SupabaseClient, assets: MarketAssetSnapshot[
   if (error) throw error;
 
   return new Map((data || []).map((row: { source_asset_id: string; id: string }) => [row.source_asset_id, row.id]));
+}
+
+async function deleteExistingMarketSnapshots(client: SupabaseClient, snapshot: MarketSnapshot) {
+  const { error } = await client
+    .from("market_snapshots")
+    .delete()
+    .eq("timeframe", snapshot.timeframe)
+    .eq("source", snapshot.freshness.source);
+
+  if (error) throw error;
 }
 
 async function upsertMarketSnapshots(client: SupabaseClient, snapshot: MarketSnapshot, assetIdMap: AssetIdMap) {

@@ -1,6 +1,6 @@
 export type Timeframe = "30m" | "4h";
 
-export type ChainKey = "ETH" | "BSC" | "SOL" | "BASE" | "ARB" | "AVAX" | "MATIC" | "TON" | "Unclassified";
+export type ChainKey = string;
 export type SectorKey =
   | "Layer 1"
   | "DeFi"
@@ -65,6 +65,7 @@ export type ProviderConfig = {
 };
 
 export const chainColors: Record<ChainKey, string> = {
+  BTC: "#F7931A",
   ETH: "#627EEA",
   BSC: "#F0B90B",
   SOL: "#9945FF",
@@ -73,6 +74,32 @@ export const chainColors: Record<ChainKey, string> = {
   AVAX: "#E84142",
   MATIC: "#8247E5",
   TON: "#0098EA",
+  XRP: "#8D93A6",
+  ADA: "#2A6BFF",
+  TRX: "#FF3B3B",
+  NEAR: "#D7F8EF",
+  SUI: "#6FBCF0",
+  ZEC: "#ECB244",
+  LTC: "#B8B8B8",
+  BCH: "#0AC18E",
+  DOT: "#E6007A",
+  ATOM: "#6F74DD",
+  APT: "#A7ADB8",
+  HBAR: "#F4F6FA",
+  ICP: "#F15A24",
+  SEI: "#D8173C",
+  INJ: "#31B6FF",
+  FIL: "#0090FF",
+  AR: "#7C8598",
+  DOGE: "#C2A633",
+  DASH: "#008CE7",
+  ALGO: "#D9DEE8",
+  TIA: "#7B4DFF",
+  RONIN: "#1273EA",
+  DYDX: "#6966FF",
+  IOTA: "#AEB7C5",
+  ETC: "#2E9F43",
+  ZEN: "#00AEEF",
   Unclassified: "#6B7280"
 };
 

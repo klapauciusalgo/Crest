@@ -48,6 +48,8 @@
 - [x] Supabase Cron scheduled market refresh every 30 minutes.
 - [x] Market universe changed from CMC market cap plan to Binance Top 300 by 24h USDT transaction volume.
 - [x] Supabase asset identity migrated from CMC-only to source/source asset identity.
+- [x] Terminal market grid search, updated-at status, clearer filter label, and polished chain fallback labels added.
+- [x] Binance asset metadata resolver expanded for native chain and sector classification.
 
 ## In Progress
 

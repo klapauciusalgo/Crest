@@ -898,11 +898,49 @@ input[type="range"] {
   background: rgba(13, 14, 17, 0.92);
 }
 
+.workspace-toolbar > div:first-child {
+  min-width: 250px;
+}
+
 .workspace-toolbar h2 {
   margin: 0;
   font-size: 16px;
   font-weight: 650;
   letter-spacing: 0;
+}
+
+.market-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: min(320px, 26vw);
+  min-width: 210px;
+  height: 34px;
+  border: 1px solid var(--border);
+  background: #0d0e12;
+  color: var(--muted);
+  padding: 0 10px;
+}
+
+.market-search:focus-within {
+  border-color: var(--border-strong);
+  color: var(--text);
+  background: #101116;
+}
+
+.market-search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.market-search input::placeholder {
+  color: color-mix(in srgb, var(--muted), var(--text) 16%);
 }
 
 .toolbar-stats {
@@ -1336,12 +1374,15 @@ input[type="range"] {
   display: inline-flex;
   justify-content: center;
   min-width: 42px;
-  max-width: 48px;
+  max-width: 64px;
   border: 1px solid color-mix(in srgb, var(--chain-color), #1e2028 40%);
   background: color-mix(in srgb, var(--chain-color), transparent 82%);
   color: var(--text);
   padding: 2px 5px;
   font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .signal-cell {
@@ -1992,6 +2033,10 @@ input[type="range"] {
 
   .toolbar-stats {
     overflow-x: auto;
+  }
+
+  .market-search {
+    width: 100%;
   }
 
   .ai-output-grid {

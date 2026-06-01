@@ -12,6 +12,7 @@ import {
   Command,
   Database,
   Pin,
+  Search,
   Settings,
   SlidersHorizontal,
   Sparkles,
@@ -101,6 +102,7 @@ type AiContextSnapshot = {
   activePreset: string;
   filterState: {
     chains: ChainKey[];
+    searchQuery: string;
     rsiRange: [number, number];
     maDistanceRange: [number, number];
   };
@@ -190,6 +192,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const [maRange, setMaRange] = useState<[number, number]>([-100, 100]);
   const [sortKey, setSortKey] = useState<SortKey>("quoteVolume24h");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [searchQuery, setSearchQuery] = useState("");
   const [pinned, setPinned] = useState<string[]>(["BTC", "ETH"]);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiResponse, setAiResponse] = useState("");
@@ -213,7 +216,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
     { name: "BSC oversold", chains: ["BSC"], rsi: [0, 35], ma: [-20, 0] },
     { name: "MA111 support", chains: allChains, rsi: [20, 55], ma: [-5, 1] }
   ]);
-  const [activePreset, setActivePreset] = useState("Manual");
+  const [activePreset, setActivePreset] = useState("Custom");
 
   const assets4h = useMemo(() => getMockAssets("4h"), []);
   const assets30m = useMemo(() => getMockAssets("30m"), []);
@@ -230,6 +233,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
     const rows = sourceAssets.filter(
       (asset) =>
         selectedChains.includes(asset.chain) &&
+        matchesAssetSearch(asset, searchQuery) &&
         asset.rsi14 >= rsiRange[0] &&
         asset.rsi14 <= rsiRange[1] &&
         asset.maDistancePct >= maRange[0] &&
@@ -237,7 +241,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
     );
 
     return sortRows(rows, sortKey, sortDirection);
-  }, [maRange, rsiRange, selectedChains, sortDirection, sortKey, sourceAssets]);
+  }, [maRange, rsiRange, searchQuery, selectedChains, sortDirection, sortKey, sourceAssets]);
 
   const chainSummaries = useMemo(() => getChainSummaries(sourceAssets), [sourceAssets]);
   const sectorSummaries = useMemo(() => getSectorSummaries(sourceAssets), [sourceAssets]);
@@ -265,6 +269,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
       activePreset,
       filterState: {
         chains: selectedChains,
+        searchQuery,
         rsiRange,
         maDistanceRange: maRange
       },
@@ -309,6 +314,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
       paginatedAssets,
       pinned,
       rsiRange,
+      searchQuery,
       sectorDetailStatus,
       sectorDetails,
       sectorSummaries,
@@ -409,7 +415,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [timeframe, selectedChains, rsiRange, maRange, sortKey, sortDirection]);
+  }, [timeframe, selectedChains, searchQuery, rsiRange, maRange, sortKey, sortDirection]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -432,7 +438,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   }
 
   function toggleChain(chain: ChainKey) {
-    setActivePreset("Manual");
+    setActivePreset("Custom");
     setSelectedChains((current) =>
       current.includes(chain) ? current.filter((item) => item !== chain) : [...current, chain]
     );
@@ -516,7 +522,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
               <button
                 onClick={() => {
                   setSelectedChains(allChains);
-                  setActivePreset("Manual");
+                  setActivePreset("Custom");
                 }}
               >
                 All
@@ -524,7 +530,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
               <button
                 onClick={() => {
                   setSelectedChains([]);
-                  setActivePreset("Manual");
+                  setActivePreset("Custom");
                 }}
               >
                 None
@@ -536,10 +542,10 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
                   className={`chain-filter ${selectedChains.includes(chain) ? "active" : ""}`}
                   key={chain}
                   onClick={() => toggleChain(chain)}
-                  style={{ "--chain-color": chainColors[chain] } as CSSProperties}
+                  style={{ "--chain-color": getChainColor(chain) } as CSSProperties}
                 >
                   <span />
-                  {chain}
+                  {formatChainLabel(chain)}
                 </button>
               ))}
             </div>
@@ -608,8 +614,17 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
               <div className="workspace-toolbar">
                 <div>
                   <p className="micro-label">Market Grid</p>
-                  <h2>Top Binance volume assets by current context</h2>
+                  <h2>Top assets by volume transaction</h2>
                 </div>
+                <label className="market-search">
+                  <Search size={14} />
+                  <input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search ticker or coin"
+                    aria-label="Search ticker or coin"
+                  />
+                </label>
                 <div className="toolbar-stats">
                   <Metric label="Pinned" value={`${pinned.length}/5`} />
                   <Metric
@@ -620,7 +635,8 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
                         : `${signalSummary.longBuy + signalSummary.shortSell} active`
                     }
                   />
-                  <Metric label="Preset" value={activePreset} />
+                  <Metric label="Filter" value={activePreset} />
+                  <Metric label="Updated" value={getLastUpdateLabel(activeFreshness)} />
                   <Metric label="Rows" value={String(filteredAssets.length)} />
                 </div>
               </div>
@@ -822,7 +838,7 @@ function MarketIntelligence({
   const maxSectorVolume = Math.max(...sectorSummaries.map((summary) => summary.avgVolumeChange), 1);
   const isChainMode = mode === "chain";
   const status = isChainMode ? chainStatus : sectorStatus;
-  const color = isChainMode ? chainColors[selectedChain] : sectorColors[selectedSector];
+  const color = isChainMode ? getChainColor(selectedChain) : sectorColors[selectedSector];
 
   return (
     <div className="rail-section chain-intel">
@@ -855,10 +871,10 @@ function MarketIntelligence({
                 className={`chain-signal ${isActive ? "active" : ""} ${selectedChains.includes(summary.chain) ? "in-view" : ""}`}
                 key={summary.chain}
                 onClick={() => onChainSelect(summary.chain)}
-                style={{ "--chain-color": chainColors[summary.chain], "--volume-width": `${volumeWidth}%` } as CSSProperties}
+                style={{ "--chain-color": getChainColor(summary.chain), "--volume-width": `${volumeWidth}%` } as CSSProperties}
               >
                 <span className="chain-signal-main">
-                  <strong>{summary.chain}</strong>
+                  <strong>{formatChainLabel(summary.chain)}</strong>
                   <span className={bias}>{formatPct(summary.avgPriceChange)}</span>
                 </span>
                 <span className="chain-signal-bar" aria-hidden="true">
@@ -908,7 +924,7 @@ function MarketIntelligence({
       <div className="chain-detail" style={{ "--chain-color": color } as CSSProperties}>
         <div className="chain-detail-head">
           <div>
-            <strong>{isChainMode ? selectedChain : selectedSector} projects</strong>
+            <strong>{isChainMode ? formatChainLabel(selectedChain) : selectedSector} projects</strong>
             <span>{isChainMode ? "Fetched chain context" : "Fetched sector context"}</span>
           </div>
           <b>
@@ -936,7 +952,7 @@ function MarketIntelligence({
                   <div>
                     <strong>${project.symbol}</strong>
                     <span>
-                      {project.name} / {project.chain}
+                      {project.name} / {formatChainLabel(project.chain)}
                     </span>
                   </div>
                   <div>
@@ -1110,8 +1126,8 @@ function AssetGrid({
                   <td className={asset.volumeChange24h >= 0 ? "positive" : "negative"}>{formatPct(asset.volumeChange24h)}</td>
                   <td>{formatCompactDollar(asset.quoteVolume24h || 0)}</td>
                   <td>
-                    <span className="chain-badge" style={{ "--chain-color": chainColors[asset.chain] } as CSSProperties}>
-                      {asset.chain}
+                    <span className="chain-badge" style={{ "--chain-color": getChainColor(asset.chain) } as CSSProperties}>
+                      {formatChainLabel(asset.chain)}
                     </span>
                   </td>
                   <td>{formatPrice(asset.ma111)}</td>
@@ -1195,6 +1211,7 @@ function AiDrawer({
       active_preset: context.activePreset,
       filter_state: {
         chains: context.filterState.chains,
+        search_query: context.filterState.searchQuery,
         rsi_range: context.filterState.rsiRange,
         ma_distance_range: context.filterState.maDistanceRange
       },
@@ -1384,11 +1401,30 @@ function normalizeApiAsset(asset: AssetSignalRow): AssetSignalRow {
 }
 
 function normalizeChain(value: string): ChainKey {
-  return allChains.includes(value as ChainKey) ? (value as ChainKey) : "ETH";
+  return value || "Unclassified";
 }
 
 function normalizeSector(value: string): SectorKey {
   return Object.keys(sectorColors).includes(value) ? (value as SectorKey) : "Infra";
+}
+
+function matchesAssetSearch(asset: AssetSignalRow, query: string) {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return true;
+  return asset.symbol.toLowerCase().includes(normalized) || asset.name.toLowerCase().includes(normalized);
+}
+
+function formatChainLabel(chain: ChainKey | string) {
+  return chain === "Unclassified" ? "Other" : chain;
+}
+
+function getChainColor(chain: ChainKey | string) {
+  return chainColors[chain] || chainColors.Unclassified;
+}
+
+function getLastUpdateLabel(freshness?: MarketFreshness) {
+  if (!freshness?.updatedAt) return "Loading";
+  return `${freshness.source === "binance" ? "Binance" : freshness.source} ${formatLastUpdate(freshness.updatedAt)}`;
 }
 
 function mapApiBreadth(rows: MarketApiBreadth[]): MarketBreadthSummary[] {
@@ -1411,7 +1447,8 @@ function getMarketStatusLabel(status: MarketLoadStatus, freshness?: MarketFreshn
   if (status === "loading") return "Loading market";
   if (status === "fallback") return "Mock fallback";
 
-  const label = freshness?.source === "hybrid" ? "Live Binance" : `Live ${freshness?.source || "market"}`;
+  const sourceLabel = freshness?.source === "binance" || freshness?.source === "hybrid" ? "Binance" : freshness?.source || "market";
+  const label = `Live ${sourceLabel}`;
   const updated = freshness?.updatedAt ? formatLastUpdate(freshness.updatedAt) : "";
   const coverage = freshness ? `${freshness.coverage.covered}/${freshness.coverage.total}` : "";
   return [label, coverage, updated].filter(Boolean).join(" · ");

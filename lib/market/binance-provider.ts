@@ -4,6 +4,7 @@ import {
   deriveIndicatorValues,
   round
 } from "@/lib/market/indicators";
+import { resolveAssetMetadata } from "@/lib/market/asset-metadata";
 import { getMockMarketSnapshot } from "@/lib/market/mock-provider";
 import type { Timeframe } from "@/lib/mock-data";
 import type { MarketAssetSnapshot, MarketSnapshot, OhlcvCandle } from "@/lib/market/types";
@@ -55,10 +56,16 @@ const excludedBaseAssets = new Set(
     "USDE",
     "SUSDE",
     "USD1",
+    "RLUSD",
     "PYUSD",
+    "XUSD",
     "EURI",
     "EUR",
     "AEUR",
+    "PAXG",
+    "XAUT",
+    "WBETH",
+    "WBTC",
     "AAPL",
     "AAPLX",
     "AMZN",
@@ -274,7 +281,7 @@ function buildFreshness(rows: MarketAssetSnapshot[], timeframe: Timeframe, updat
 
   return {
     timeframe,
-    source: "hybrid",
+    source: "binance",
     updatedAt,
     stalenessSeconds: 0,
     isStale: false,
@@ -336,19 +343,21 @@ async function fetchBinanceJson(path: string, params: Record<string, string>) {
 }
 
 function buildFallbackAsset(universeAsset: BinanceUniverseAsset, knownAsset?: MarketAssetSnapshot): MarketAssetSnapshot {
+  const metadata = resolveAssetMetadata(universeAsset.symbol);
+
   return {
     id: `binance-${universeAsset.symbol.toLowerCase()}`,
     sourceAssetId: universeAsset.symbol,
     cmcId: null,
     symbol: universeAsset.symbol,
-    name: knownAsset?.name || universeAsset.symbol,
+    name: metadata.name || knownAsset?.name || universeAsset.symbol,
     rank: universeAsset.rank,
     rankBasis: "binance_quote_volume_24h",
     quoteVolume24h: round(universeAsset.quoteVolume24h),
     tradeCount24h: universeAsset.tradeCount24h,
     blacklistStatus: "allowed",
-    chain: knownAsset?.chain || "Unclassified",
-    sectors: knownAsset?.sectors || ["Unclassified"],
+    chain: metadata.chain,
+    sectors: metadata.sectors,
     source: "binance",
     timeframe: "30m",
     price: universeAsset.lastPrice,
