@@ -1090,14 +1090,36 @@ function AssetGrid({
     <div className="grid-shell">
       <div className="asset-table-wrap">
         <table className="asset-grid">
+          <colgroup>
+            <col className="col-pin" />
+            <col className="col-asset" />
+            <col className="col-price" />
+            <col className="col-change" />
+            <col className="col-rsi" />
+            <col className="col-change" />
+            <col className="col-volume" />
+            <col className="col-chain" />
+            <col className="col-price" />
+            <col className="col-change" />
+            <col className="col-signal" />
+          </colgroup>
           <thead>
             <tr>
               <th aria-label="Pinned assets" />
               {visibleColumns.map((column) => (
-                <th className={column.align === "left" ? "left" : ""} key={column.key}>
-                  <button onClick={() => onSort(column.key)}>
-                    {column.label}
-                    <span>{sortKey === column.key ? sortGlyphAscii(sortDirection) : ""}</span>
+                <th
+                  aria-sort={getAriaSort(sortKey === column.key ? sortDirection : "none")}
+                  className={`${column.align === "left" ? "left" : ""} ${sortKey === column.key ? "sorted" : ""}`}
+                  key={column.key}
+                >
+                  <button
+                    aria-label={`Sort by ${column.label}`}
+                    onClick={() => onSort(column.key)}
+                  >
+                    <span className="column-label">{column.label}</span>
+                    <span className={`sort-indicator ${sortKey === column.key ? sortDirection : "none"}`} aria-hidden="true">
+                      {sortGlyphAscii(sortKey === column.key ? sortDirection : "none")}
+                    </span>
                   </button>
                 </th>
               ))}
@@ -1569,7 +1591,13 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function sortGlyphAscii(direction: SortDirection) {
-  if (direction === "asc") return "^";
-  if (direction === "desc") return "v";
+  if (direction === "asc") return "↑";
+  if (direction === "desc") return "↓";
   return "";
+}
+
+function getAriaSort(direction: SortDirection) {
+  if (direction === "asc") return "ascending";
+  if (direction === "desc") return "descending";
+  return "none";
 }

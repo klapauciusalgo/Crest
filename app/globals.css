@@ -1223,16 +1223,50 @@ input[type="range"] {
 
 .asset-table-wrap {
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding-bottom: 8px;
   scrollbar-gutter: stable;
 }
 
 .asset-grid {
   width: 100%;
-  min-width: 980px;
+  min-width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-variant-numeric: tabular-nums;
+}
+
+.asset-grid .col-pin {
+  width: 34px;
+}
+
+.asset-grid .col-asset {
+  width: 16%;
+}
+
+.asset-grid .col-price {
+  width: 9.5%;
+}
+
+.asset-grid .col-change {
+  width: 8.5%;
+}
+
+.asset-grid .col-rsi {
+  width: 10%;
+}
+
+.asset-grid .col-volume {
+  width: 10%;
+}
+
+.asset-grid .col-chain {
+  width: 7%;
+}
+
+.asset-grid .col-signal {
+  width: 8.5%;
 }
 
 .asset-grid thead {
@@ -1245,14 +1279,15 @@ input[type="range"] {
 .asset-grid th {
   height: 32px;
   border-bottom: 1px solid var(--border);
-  padding: 0 10px;
+  padding: 0;
+  color: color-mix(in srgb, var(--muted), var(--text) 10%);
   text-align: right;
   white-space: nowrap;
 }
 
 .asset-grid th:first-child,
 .asset-grid td:first-child {
-  width: 38px;
+  width: 34px;
   text-align: center;
 }
 
@@ -1260,18 +1295,72 @@ input[type="range"] {
   text-align: left;
 }
 
+.asset-grid th.left button {
+  justify-content: flex-start;
+}
+
 .asset-grid th button {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 5px;
+  min-width: 0;
   width: 100%;
+  height: 32px;
   border: 0;
   background: transparent;
   color: inherit;
   cursor: pointer;
+  font: inherit;
+  padding: 0 10px;
   text-transform: inherit;
   letter-spacing: inherit;
+}
+
+.asset-grid th button:hover {
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text);
+}
+
+.asset-grid th button:focus-visible {
+  outline: 1px solid var(--blue);
+  outline-offset: -2px;
+}
+
+.asset-grid th.sorted {
+  color: var(--text);
+}
+
+.asset-grid th.sorted button {
+  background: linear-gradient(180deg, rgba(76, 158, 255, 0.075), rgba(76, 158, 255, 0.018));
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--blue), transparent 30%);
+}
+
+.column-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sort-indicator {
+  display: inline-grid;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 1px solid transparent;
+  color: transparent;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.sort-indicator.asc,
+.sort-indicator.desc {
+  border-color: rgba(76, 158, 255, 0.24);
+  background: rgba(76, 158, 255, 0.1);
+  color: var(--text);
 }
 
 .asset-grid td {
@@ -1283,6 +1372,8 @@ input[type="range"] {
   font-size: 12px;
   text-align: right;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .asset-grid tr:hover td {
@@ -1303,14 +1394,18 @@ input[type="range"] {
 
 .asset-cell strong {
   display: block;
+  overflow: hidden;
   font-size: 12px;
+  text-overflow: ellipsis;
 }
 
 .asset-cell span {
   display: block;
+  overflow: hidden;
   color: var(--faint);
   font-family: var(--font-ui);
   font-size: 11px;
+  text-overflow: ellipsis;
 }
 
 .positive {
