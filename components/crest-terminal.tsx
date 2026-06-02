@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  CircleUserRound,
   Command,
   Database,
   LogOut,
@@ -46,7 +45,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 type ViewMode = "terminal" | "admin";
 type AuthMode = "visitor" | "user" | "admin";
 type AuthStatus = "checking" | "signed-out" | "working" | "signed-in" | "error";
-type AuthAction = "x" | "wallet" | null;
+type AuthAction = "wallet" | null;
 type EthereumProvider = {
   isBitKeep?: boolean;
   isBitget?: boolean;
@@ -221,7 +220,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const [authProfile, setAuthProfile] = useState<CrestAuthProfile | null>(null);
   const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
   const [authAction, setAuthAction] = useState<AuthAction>(null);
-  const [authMessage, setAuthMessage] = useState("Checking Supabase session.");
+  const [authMessage, setAuthMessage] = useState("Checking wallet session.");
   const [detectedWallets, setDetectedWallets] = useState<DetectedWallet[]>([]);
   const [view, setView] = useState<ViewMode>(initialView);
   const [timeframe, setTimeframe] = useState<Timeframe>("4h");
@@ -582,13 +581,6 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
 
   const isSignedOut = authMode === "visitor";
 
-  async function signInWithX() {
-    setAuthStatus("working");
-    setAuthAction("x");
-    setAuthMessage("Opening X OAuth.");
-    window.location.assign("/auth/sign-in/x");
-  }
-
   async function signInWithWallet(walletId?: string) {
     setAuthStatus("working");
     setAuthAction("wallet");
@@ -745,7 +737,6 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
         authStatus={authStatus}
         detectedWallets={detectedWallets}
         onSignInWithWallet={signInWithWallet}
-        onSignInWithX={signInWithX}
       />
     );
   }
@@ -940,15 +931,13 @@ function AuthEntry({
   authMessage,
   authStatus,
   detectedWallets,
-  onSignInWithWallet,
-  onSignInWithX
+  onSignInWithWallet
 }: {
   authAction: AuthAction;
   authMessage: string;
   authStatus: AuthStatus;
   detectedWallets: DetectedWallet[];
   onSignInWithWallet: (walletId?: string) => void;
-  onSignInWithX: () => void;
 }) {
   const isBusy = authStatus === "checking" || authStatus === "working";
   const hasWallets = detectedWallets.length > 0;
@@ -996,23 +985,19 @@ function AuthEntry({
             <span />
             <span>Context engine armed</span>
           </div>
-          <h1>Market structure, chain strength, and AI context in one dense workspace.</h1>
-          <p>Sign in as an analyst to connect live market context, saved workspace state, and future AI sessions.</p>
+          <h1>Market structure, chain strength, and AI context for disciplined crypto analysis.</h1>
+          <p>
+            Connect a wallet to access a live analytical workspace built for regime tracking, liquidity rotation, and
+            context-aware market review.
+          </p>
           <div className="entry-status" aria-label="Prototype status">
             <span>Live Binance</span>
-            <span>30m / 4h</span>
-            <span>Supabase Auth</span>
+            <span>30m / 4h regimes</span>
+            <span>Wallet-secured session</span>
           </div>
         </div>
         <div className="auth-actions">
           <p className="micro-label">Access</p>
-          <button disabled={isBusy} onClick={onSignInWithX}>
-            <CircleUserRound size={16} />
-            <span>
-              {authAction === "x" ? "Opening X OAuth" : "Continue with X"}
-              <small>Supabase Twitter OAuth</small>
-            </span>
-          </button>
           <button disabled={isBusy} onClick={() => onSignInWithWallet()}>
             <Wallet size={16} />
             <span>
@@ -1037,11 +1022,6 @@ function AuthEntry({
             </div>
           )}
           {authMessage && <div className={`auth-message ${authStatus}`}>{authMessage}</div>}
-        </div>
-        <div className="entry-footer">
-          <span>Production auth</span>
-          <span>Vercel preview</span>
-          <span>Supabase session</span>
         </div>
       </section>
     </main>
