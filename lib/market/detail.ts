@@ -96,11 +96,11 @@ async function readSupabaseAssetDetail(client: SupabaseClient, symbol: string, t
   if (!latestRow) throw new MarketAssetDetailNotFoundError(symbol);
 
   const latestSnapshot = mapAssetSnapshot(asset, latestRow, timeframe);
-  const persistedHistory = historyRows.map((row) => mapHistoryPoint(row, timeframe));
+  const persistedHistory = dedupeHistoryPoints(historyRows.map((row) => mapHistoryPoint(row, timeframe)));
   const candles = candleRows.map(mapCandlePoint).sort((first, second) => first.time - second.time);
   const derivedHistory =
-    persistedHistory.length >= 20 ? [] : deriveHistoryFromCandles(candles, latestSnapshot, timeframe, 20 - persistedHistory.length);
-  const history = [...persistedHistory, ...derivedHistory]
+    persistedHistory.length >= 20 ? [] : deriveHistoryFromCandles(candles, latestSnapshot, timeframe, 20);
+  const history = dedupeHistoryPoints([...persistedHistory, ...derivedHistory])
     .sort((first, second) => new Date(second.candleCloseAt).getTime() - new Date(first.candleCloseAt).getTime())
     .slice(0, 20);
 
@@ -157,7 +157,7 @@ async function readHistoryRows(client: SupabaseClient, assetId: string, timefram
     .eq("timeframe", timeframe)
     .eq("source", "binance")
     .order("computed_at", { ascending: false })
-    .limit(20);
+    .limit(60);
 
   if (error) throw error;
   return (data || []) as unknown as SnapshotRecord[];
@@ -296,6 +296,23 @@ function mapCandlePoint(row: CandleRecord): MarketCandlePoint {
     volume: toNumber(row.volume),
     source: toMarketDataSource(row.source)
   };
+}
+
+function dedupeHistoryPoints(points: MarketSnapshotHistoryPoint[]) {
+  const seen = new Set<string>();
+
+  return [...points]
+    .sort((first, second) => {
+      const candleDelta = new Date(second.candleCloseAt).getTime() - new Date(first.candleCloseAt).getTime();
+      if (candleDelta !== 0) return candleDelta;
+      return new Date(second.computedAt).getTime() - new Date(first.computedAt).getTime();
+    })
+    .filter((point) => {
+      const key = `${point.timeframe}:${point.candleCloseAt}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 function deriveHistoryFromCandles(

@@ -87,7 +87,7 @@ export function AssetDetailPage({
         </div>
       </section>
 
-      <section className="asset-detail-grid">
+      <section className="asset-detail-workspace">
         <div className="detail-chart-panel">
           <div className="detail-section-head">
             <div>
@@ -131,21 +131,21 @@ export function AssetDetailPage({
               </div>
             </dl>
           </div>
-        </aside>
-      </section>
 
-      <section className="history-panel">
-        <div className="detail-section-head">
-          <div>
-            <p className="micro-label">Snapshot history</p>
-            <h2>Last {detail.history.length} {timeframe} records</h2>
-          </div>
-          <span className="detail-status">
-            <Table2 size={12} />
-            {detail.historySource.replaceAll("_", " ")}
-          </span>
-        </div>
-        <HistoryTable rows={detail.history} timeframe={timeframe} />
+          <section className="history-panel">
+            <div className="detail-section-head">
+              <div>
+                <p className="micro-label">Snapshot history</p>
+                <h2>Last {detail.history.length} {timeframe} records</h2>
+              </div>
+              <span className="detail-status">
+                <Table2 size={12} />
+                {detail.historySource.replaceAll("_", " ")}
+              </span>
+            </div>
+            <HistoryTable rows={detail.history} timeframe={timeframe} />
+          </section>
+        </aside>
       </section>
     </main>
   );
@@ -293,12 +293,8 @@ function HistoryTable({ rows, timeframe }: { rows: MarketSnapshotHistoryPoint[];
           <tr>
             <th className="left">Time</th>
             <th>Price</th>
-            <th>24h</th>
             <th>RSI</th>
-            <th>MA111</th>
-            <th>MA dist.</th>
             <th>{timeframe === "4h" ? "Regime" : "Setup"}</th>
-            <th>Vol chg.</th>
           </tr>
         </thead>
         <tbody>
@@ -310,19 +306,24 @@ function HistoryTable({ rows, timeframe }: { rows: MarketSnapshotHistoryPoint[];
                   {formatLocalTime(row.candleCloseAt)}
                 </span>
               </td>
-              <td>{formatPrice(row.price)}</td>
-              <td className={row.priceChange24h >= 0 ? "positive" : "negative"}>{formatPct(row.priceChange24h)}</td>
-              <td>{row.rsi14.toFixed(1)}</td>
-              <td>{formatPrice(row.ma111)}</td>
-              <td className={row.maDistancePct >= 0 ? "positive" : "negative"}>{formatPct(row.maDistancePct)}</td>
+              <td>
+                <span className="history-primary">{formatPrice(row.price)}</span>
+                <span className={row.priceChange24h >= 0 ? "history-sub positive" : "history-sub negative"}>{formatPct(row.priceChange24h)} 24h</span>
+              </td>
+              <td>
+                <span className="history-primary">{row.rsi14.toFixed(1)}</span>
+                <span className={row.maDistancePct >= 0 ? "history-sub positive" : "history-sub negative"}>
+                  MA {formatPrice(row.ma111)} {formatPct(row.maDistancePct)}
+                </span>
+              </td>
               <td>
                 {timeframe === "4h" ? (
                   <span className={`regime-pill ${row.regime4h.toLowerCase()}`}>{row.regime4h}</span>
                 ) : (
                   <span className={`setup-pill ${setupClass(row.recommendation30m)}`}>{row.recommendation30m}</span>
                 )}
+                <span className={row.volumeChange24h >= 0 ? "history-sub positive" : "history-sub negative"}>Vol {formatPct(row.volumeChange24h)}</span>
               </td>
-              <td className={row.volumeChange24h >= 0 ? "positive" : "negative"}>{formatPct(row.volumeChange24h)}</td>
             </tr>
           ))}
         </tbody>
