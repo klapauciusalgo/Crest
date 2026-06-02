@@ -47,7 +47,7 @@ FILTER & SORT SYSTEM
 - Combined sort: primary column + secondary column
 
 AUTHENTICATION — TWO METHODS
-1. OAuth via X (Twitter): Supabase Auth, store X user ID + display name
+1. OAuth via X/Twitter: Supabase Auth legacy Twitter provider using OAuth 1.0a Consumer Key/Secret, store X user ID + display name
 2. Sign-In with Ethereum (SIWE, EIP-4361): browser wallet signature plus server-side Vercel route handler verification through Supabase Auth. No password stored.
 Both methods produce a unified user session with role: "user" | "admin"
 
@@ -73,6 +73,6 @@ Hosting/backend: Vercel + Next.js App Router route handlers + Vercel Cron Jobs
 Database/auth/realtime: Supabase Postgres + Supabase Auth + Supabase Realtime
 Frontend: Next.js 14 App Router + TypeScript + TanStack Table + Zustand
 Styling: Tailwind CSS v4 with custom design tokens
-Auth: Supabase Auth (X OAuth + Ethereum SIWE wallet session)
+Auth: Supabase Auth (Twitter OAuth 1.0a login + Ethereum SIWE wallet session)
 
 Deliver as a modular Vercel-ready codebase with clear separation: /app/api, /components, /store, /lib/indicators, /lib/ai-provider, /lib/supabase, /supabase/migrations

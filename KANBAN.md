@@ -55,14 +55,14 @@
 - [x] Market breadth cards added for Top 100, Top 200, and Top 300 with average RSI and regime distribution.
 - [x] Market grid sorting UI stabilized with fixed column layout, reserved sort indicators, and browser verification.
 - [x] Production deployment refreshed after latest terminal UI polish.
-- [x] X OAuth app flow implemented with Supabase Auth callback and profile sync.
+- [x] X/Twitter OAuth app flow implemented with Supabase Auth callback and profile sync.
 - [x] Ethereum wallet authentication implemented with SIWE signature verification through Supabase Auth.
 - [x] X OAuth disabled-provider UX hardened so users return to Crest with a clear setup error instead of Supabase JSON.
 
 ## In Progress
 
 - [ ] Backend Phase 4 hardening: Binance Top 300 volume ingestion monitoring and edge-case verification.
-- [ ] Auth provider dashboard setup: X OAuth is still disabled in Supabase cloud; enable/configure X and Web3 providers.
+- [ ] Auth provider dashboard/API setup: configure legacy Twitter OAuth 1.0a and Web3 providers in Supabase cloud.
 
 ## Next
 

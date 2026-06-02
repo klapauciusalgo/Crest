@@ -965,7 +965,7 @@ function AuthEntry({
             <CircleUserRound size={16} />
             <span>
               {authAction === "x" ? "Opening X OAuth" : "Continue with X"}
-              <small>Supabase OAuth 2.0</small>
+              <small>Supabase Twitter OAuth</small>
             </span>
           </button>
           <button disabled={isBusy} onClick={onSignInWithWallet}>
@@ -1694,7 +1694,7 @@ function getAuthErrorFromLocation() {
   const value = params.get("auth_error");
 
   if (value === "x_provider_disabled") {
-    return "X OAuth is not enabled in Supabase Auth yet. Enable the X provider in Supabase, then retry.";
+    return "X/Twitter OAuth is not enabled in Supabase Auth yet. Enable the Twitter provider in Supabase, then retry.";
   }
 
   if (value === "x_oauth_unavailable") {

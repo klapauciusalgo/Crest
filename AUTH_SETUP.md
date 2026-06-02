@@ -1,15 +1,15 @@
 # Crest Auth Setup
 
-## Supabase X OAuth
+## Supabase X/Twitter OAuth
 
 The Crest app route is implemented at `/auth/sign-in/x`, and the callback route is `/auth/callback`.
 
-Supabase cloud must still have the X provider enabled:
+Crest currently uses Supabase's legacy `twitter` provider because the available X credentials are OAuth 1.0a Consumer Key and Secret Key.
 
 1. Open the Supabase project `szlsfmoacoafztgocimm`.
-2. Go to Authentication -> Providers -> X.
-3. Enable the provider.
-4. Add the X OAuth 2.0 client ID and client secret.
+2. Go to Authentication -> Providers -> Twitter.
+3. Enable the Twitter provider.
+4. Add the X/Twitter Consumer Key and Secret Key.
 5. In the X developer app, add the callback URL:
    - `https://szlsfmoacoafztgocimm.supabase.co/auth/v1/callback`
 6. In Supabase Auth URL configuration, allow:
@@ -18,10 +18,12 @@ Supabase cloud must still have the X provider enabled:
 
 Local Supabase config uses env placeholders:
 
-- `SUPABASE_AUTH_EXTERNAL_X_CLIENT_ID`
-- `SUPABASE_AUTH_EXTERNAL_X_SECRET`
+- `SUPABASE_AUTH_EXTERNAL_TWITTER_CONSUMER_KEY`
+- `SUPABASE_AUTH_EXTERNAL_TWITTER_SECRET_KEY`
 
 Never commit those values.
+
+When OAuth 2.0 Client ID and Client Secret become available, Crest can switch back to Supabase provider `x`.
 
 ## Ethereum Wallet Auth
 

@@ -102,12 +102,16 @@ function getDisplayName(user: User) {
 
 function getXUserId(user: User) {
   const direct = user.user_metadata?.provider_id || user.user_metadata?.sub;
-  if (typeof direct === "string" && getPrimaryProvider(user) === "x") return direct;
+  if (typeof direct === "string" && isXProvider(getPrimaryProvider(user))) return direct;
 
-  const identity = user.identities?.find((item) => item.provider === "x");
+  const identity = user.identities?.find((item) => isXProvider(item.provider));
   const identityData = identity?.identity_data as Record<string, unknown> | undefined;
   const id = identityData?.provider_id || identityData?.sub || identity?.id;
   return typeof id === "string" ? id : null;
+}
+
+function isXProvider(provider: string) {
+  return provider === "x" || provider === "twitter";
 }
 
 function getWalletAddress(user: User) {
