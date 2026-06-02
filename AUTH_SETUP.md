@@ -1,5 +1,28 @@
 # Crest Auth Setup
 
+## Supabase Google/Gmail OAuth
+
+Crest supports Google OAuth at `/auth/sign-in/google`, using the shared callback route `/auth/callback`.
+For v1, only Google accounts with an email ending in `@gmail.com` are allowed. Google Workspace/custom-domain accounts are signed out after callback and redirected with a clear error.
+
+1. Open the Google Auth Platform in Google Cloud.
+2. Configure the OAuth consent screen for Crest.
+3. Create an OAuth Client ID with application type `Web application`.
+4. Add authorized JavaScript origins:
+   - `https://crest-inky.vercel.app`
+   - `http://localhost:3000` for local testing, if needed.
+5. Add the authorized redirect URI:
+   - `https://szlsfmoacoafztgocimm.supabase.co/auth/v1/callback`
+6. Open the Supabase project `szlsfmoacoafztgocimm`.
+7. Go to Authentication -> Providers -> Google.
+8. Enable the Google provider and paste the Google Client ID and Client Secret.
+9. In Supabase Auth URL configuration, allow:
+   - Site URL: `https://crest-inky.vercel.app`
+   - Redirect URL: `https://crest-inky.vercel.app/auth/callback`
+   - Optional local redirect: `http://localhost:3000/auth/callback`
+
+Never commit the Google Client Secret.
+
 ## Supabase X/Twitter OAuth
 
 The Crest app route is implemented at `/auth/sign-in/x`, and the callback route is `/auth/callback`.

@@ -12,6 +12,7 @@ import {
   Command,
   Database,
   LogOut,
+  Mail,
   Pin,
   Search,
   Settings,
@@ -46,7 +47,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 type ViewMode = "terminal" | "admin";
 type AuthMode = "visitor" | "user" | "admin";
 type AuthStatus = "checking" | "signed-out" | "working" | "signed-in" | "error";
-type AuthAction = "wallet" | null;
+type AuthAction = "google" | "wallet" | null;
 type EthereumProvider = {
   isBitKeep?: boolean;
   isBitget?: boolean;
@@ -654,6 +655,13 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
     }
   }
 
+  function signInWithGoogle() {
+    setAuthStatus("working");
+    setAuthAction("google");
+    setAuthMessage("Redirecting to Google.");
+    window.location.href = "/auth/sign-in/google";
+  }
+
   async function signOut() {
     const supabase = getSupabaseBrowserClient();
     setAuthStatus("working");
@@ -748,6 +756,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
         authMessage={authMessage}
         authStatus={authStatus}
         detectedWallets={detectedWallets}
+        onSignInWithGoogle={signInWithGoogle}
         onSignInWithWallet={signInWithWallet}
       />
     );
@@ -943,12 +952,14 @@ function AuthEntry({
   authMessage,
   authStatus,
   detectedWallets,
+  onSignInWithGoogle,
   onSignInWithWallet
 }: {
   authAction: AuthAction;
   authMessage: string;
   authStatus: AuthStatus;
   detectedWallets: DetectedWallet[];
+  onSignInWithGoogle: () => void;
   onSignInWithWallet: (walletId?: string) => void;
 }) {
   const isBusy = authStatus === "checking" || authStatus === "working";
@@ -999,17 +1010,24 @@ function AuthEntry({
           </div>
           <h1>Market structure, chain strength, and AI context for disciplined crypto analysis.</h1>
           <p>
-            Connect a wallet to access a live analytical workspace built for regime tracking, liquidity rotation, and
-            context-aware market review.
+            Sign in with Gmail or connect a wallet to access a live analytical workspace built for regime tracking,
+            liquidity rotation, and context-aware market review.
           </p>
           <div className="entry-status" aria-label="Prototype status">
             <span>Live Binance</span>
             <span>30m / 4h regimes</span>
-            <span>Wallet-secured session</span>
+            <span>Gmail or wallet session</span>
           </div>
         </div>
         <div className="auth-actions">
           <p className="micro-label">Access</p>
+          <button disabled={isBusy} onClick={onSignInWithGoogle}>
+            <Mail size={16} />
+            <span>
+              {authAction === "google" ? "Redirecting to Google" : "Continue with Gmail"}
+              <small>Only @gmail.com accounts are allowed</small>
+            </span>
+          </button>
           <button disabled={isBusy} onClick={() => onSignInWithWallet()}>
             <Wallet size={16} />
             <span>
@@ -1852,6 +1870,18 @@ function getAuthErrorFromLocation() {
 
   if (value === "x_oauth_unavailable") {
     return "X OAuth could not be started from Supabase.";
+  }
+
+  if (value === "google_provider_disabled") {
+    return "Google OAuth is not enabled in Supabase Auth yet. Enable the Google provider, then retry.";
+  }
+
+  if (value === "google_oauth_unavailable") {
+    return "Google sign-in could not be started from Supabase.";
+  }
+
+  if (value === "google_email_not_allowed") {
+    return "Only @gmail.com Google accounts can access Crest right now.";
   }
 
   if (value === "exchange_failed") {
