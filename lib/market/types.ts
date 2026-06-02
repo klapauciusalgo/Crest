@@ -61,7 +61,13 @@ export type MarketAssetSnapshot = MarketUniverseAsset &
 export type MarketBreadthSnapshot = {
   timeframe: Timeframe;
   universe: "Top 100" | "Top 200" | "Top 300";
+  metricKind: "regime" | "setup";
   averageRsi: number;
+  positiveLabel: string;
+  negativeLabel: string;
+  neutralLabel: string;
+  positiveCount: number;
+  negativeCount: number;
   bullishCount: number;
   bearishCount: number;
   neutralCount: number;

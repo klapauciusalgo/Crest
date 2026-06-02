@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Timeframe } from "@/lib/mock-data";
+import { buildTimeframeBreadth, withBreadthSemantics } from "@/lib/market/breadth";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   AssetCoverageStatus,
@@ -103,7 +104,13 @@ export async function readSupabaseMarketSnapshot(client: SupabaseClient, timefra
     readBreadthSnapshots(client, timeframe)
   ]);
   const assets = assetRows.map(mapAssetSnapshot).sort((first, second) => first.rank - second.rank);
-  const breadth = breadthRows.map(mapBreadthSnapshot).sort((first, second) => getUniverseSize(first.universe) - getUniverseSize(second.universe));
+  const storedBreadth = breadthRows
+    .map(mapBreadthSnapshot)
+    .sort((first, second) => getUniverseSize(first.universe) - getUniverseSize(second.universe));
+  const breadth =
+    assets.length > 0
+      ? buildTimeframeBreadth(assets, timeframe, getLatestUpdatedAt(assets.map((asset) => asset.updatedAt)))
+      : storedBreadth;
   const updatedAt = getLatestUpdatedAt([
     ...assets.map((asset) => asset.updatedAt),
     ...breadth.map((item) => item.updatedAt)
@@ -225,7 +232,7 @@ function mapAssetSnapshot(row: MarketSnapshotRecord): MarketAssetSnapshot {
 function mapBreadthSnapshot(row: MarketBreadthRecord): MarketBreadthSnapshot {
   const universe = row.universe_top === 100 || row.universe_top === 200 ? row.universe_top : 300;
 
-  return {
+  return withBreadthSemantics({
     timeframe: toTimeframe(row.timeframe),
     universe: `Top ${universe}`,
     averageRsi: toNumber(row.average_rsi),
@@ -234,7 +241,7 @@ function mapBreadthSnapshot(row: MarketBreadthRecord): MarketBreadthSnapshot {
     neutralCount: row.neutral_count,
     coverageCount: row.coverage_count,
     updatedAt: row.computed_at
-  };
+  });
 }
 
 function getRelatedAsset(value: MarketAssetRecord | MarketAssetRecord[] | null): MarketAssetRecord {

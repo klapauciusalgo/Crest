@@ -5,6 +5,7 @@ import {
   round
 } from "@/lib/market/indicators";
 import { resolveAssetMetadata } from "@/lib/market/asset-metadata";
+import { buildTimeframeBreadth } from "@/lib/market/breadth";
 import { getMockMarketSnapshot } from "@/lib/market/mock-provider";
 import type { Timeframe } from "@/lib/mock-data";
 import type { MarketAssetSnapshot, MarketSnapshot, OhlcvCandle } from "@/lib/market/types";
@@ -109,13 +110,13 @@ export async function buildBinanceMarketSnapshotBundle(): Promise<BinanceMarketS
       {
         timeframe: "30m",
         assets: assets30m,
-        breadth: buildBreadth(assets30m, "30m", updatedAt),
+        breadth: buildTimeframeBreadth(assets30m, "30m", updatedAt),
         freshness: buildFreshness(assets30m, "30m", updatedAt)
       },
       {
         timeframe: "4h",
         assets: assets4h,
-        breadth: buildBreadth(assets4h, "4h", updatedAt),
+        breadth: buildTimeframeBreadth(assets4h, "4h", updatedAt),
         freshness: buildFreshness(assets4h, "4h", updatedAt)
       }
     ]
@@ -255,27 +256,6 @@ function buildAssetsForTimeframe(
   });
 }
 
-function buildBreadth(rows: MarketAssetSnapshot[], timeframe: Timeframe, updatedAt: string) {
-  const ranges = [100, 200, 300] as const;
-
-  return ranges.map((range) => {
-    const universeRows = rows.slice(0, range);
-    const bullishCount = universeRows.filter((asset) => asset.regime4h === "Bullish").length;
-    const bearishCount = universeRows.filter((asset) => asset.regime4h === "Bearish").length;
-
-    return {
-      timeframe,
-      universe: `Top ${range}` as const,
-      averageRsi: round(average(universeRows.map((asset) => asset.rsi14))),
-      bullishCount,
-      bearishCount,
-      neutralCount: universeRows.length - bullishCount - bearishCount,
-      coverageCount: universeRows.filter((asset) => asset.coverageStatus === "covered").length,
-      updatedAt
-    };
-  });
-}
-
 function buildFreshness(rows: MarketAssetSnapshot[], timeframe: Timeframe, updatedAt: string): MarketSnapshot["freshness"] {
   const covered = rows.filter((asset) => asset.coverageStatus === "covered").length;
 
@@ -316,11 +296,6 @@ function getSignalReason(
   if (regime4h === "Bullish") return "4h bullish from Binance candles; waiting for 30m RSI below 35.";
   if (regime4h === "Bearish") return "4h bearish from Binance candles; waiting for 30m RSI above 70.";
   return `4h neutral from Binance candles; price ${indicator4h.price.toFixed(4)} vs MA111 ${indicator4h.ma111.toFixed(4)}.`;
-}
-
-function average(values: number[]) {
-  if (values.length === 0) return 0;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 async function fetchBinanceJson(path: string, params: Record<string, string>) {

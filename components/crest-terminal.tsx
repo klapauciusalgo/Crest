@@ -92,16 +92,27 @@ type IntelligenceMode = "chain" | "sector";
 type GridColumn = { key: SortKey; label: string; align?: "right" | "left" };
 type MarketBreadthSummary = {
   range: "Top 100" | "Top 200" | "Top 300";
+  metricKind: "regime" | "setup";
   averageRsi: number;
-  bullishCount: number;
-  bearishCount: number;
+  positiveLabel: string;
+  negativeLabel: string;
+  neutralLabel: string;
+  positiveCount: number;
+  negativeCount: number;
   neutralCount: number;
-  bullishPct: number;
-  bearishPct: number;
+  positivePct: number;
+  negativePct: number;
 };
 type MarketApiBreadth = {
+  timeframe?: Timeframe;
   universe: MarketBreadthSummary["range"];
+  metricKind?: MarketBreadthSummary["metricKind"];
   averageRsi: number;
+  positiveLabel?: string;
+  negativeLabel?: string;
+  neutralLabel?: string;
+  positiveCount?: number;
+  negativeCount?: number;
   bullishCount: number;
   bearishCount: number;
   neutralCount: number;
@@ -290,7 +301,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const visibleTickers = useMemo(() => paginatedAssets.map((asset) => asset.symbol), [paginatedAssets]);
   const signalSummary = useMemo(() => getSignalSummary(filteredAssets), [filteredAssets]);
   const marketBreadth = useMemo(
-    () => remoteBreadth[timeframe] || getMarketBreadth(sourceAssets),
+    () => remoteBreadth[timeframe] || getMarketBreadth(sourceAssets, timeframe),
     [remoteBreadth, sourceAssets, timeframe]
   );
   const syncProfileFromUser = useCallback(
@@ -1315,13 +1326,13 @@ function MarketBreadthStrip({ summaries, timeframe }: { summaries: MarketBreadth
               <span>Avg RSI {summary.averageRsi.toFixed(1)}</span>
             </div>
             <div className="breadth-bar" aria-hidden="true">
-              <span className="bull" style={{ "--breadth-width": `${summary.bullishPct}%` } as CSSProperties} />
-              <span className="bear" style={{ "--breadth-width": `${summary.bearishPct}%` } as CSSProperties} />
+              <span className="bull" style={{ "--breadth-width": `${summary.positivePct}%` } as CSSProperties} />
+              <span className="bear" style={{ "--breadth-width": `${summary.negativePct}%` } as CSSProperties} />
             </div>
             <div className="breadth-card-meta">
-              <span className="positive">{summary.bullishCount}B</span>
-              <span className="negative">{summary.bearishCount}S</span>
-              <span>{summary.neutralCount}N</span>
+              <span className="positive">{formatBreadthMetric(summary.positiveCount, summary.positiveLabel)}</span>
+              <span className="negative">{formatBreadthMetric(summary.negativeCount, summary.negativeLabel)}</span>
+              <span>{formatBreadthMetric(summary.neutralCount, summary.neutralLabel)}</span>
             </div>
           </article>
         ))}
@@ -1910,6 +1921,10 @@ function formatChainLabel(chain: ChainKey | string) {
   return chain === "Unclassified" ? "Other" : chain;
 }
 
+function formatBreadthMetric(count: number, label: string) {
+  return `${count} ${label}`;
+}
+
 function getChainColor(chain: ChainKey | string) {
   return chainColors[chain] || chainColors.Unclassified;
 }
@@ -1921,16 +1936,26 @@ function getLastUpdateLabel(freshness?: MarketFreshness) {
 
 function mapApiBreadth(rows: MarketApiBreadth[]): MarketBreadthSummary[] {
   return rows.map((row) => {
-    const total = row.bullishCount + row.bearishCount + row.neutralCount || 1;
+    const metricKind = row.metricKind || (row.timeframe === "30m" ? "setup" : "regime");
+    const positiveLabel = row.positiveLabel || (metricKind === "regime" ? "Bullish" : "Long/Buy");
+    const negativeLabel = row.negativeLabel || (metricKind === "regime" ? "Bearish" : "Short/Sell");
+    const neutralLabel = row.neutralLabel || (metricKind === "regime" ? "Neutral" : "Wait");
+    const positiveCount = row.positiveCount ?? row.bullishCount;
+    const negativeCount = row.negativeCount ?? row.bearishCount;
+    const total = positiveCount + negativeCount + row.neutralCount || 1;
 
     return {
       range: row.universe,
+      metricKind,
       averageRsi: row.averageRsi,
-      bullishCount: row.bullishCount,
-      bearishCount: row.bearishCount,
+      positiveLabel,
+      negativeLabel,
+      neutralLabel,
+      positiveCount,
+      negativeCount,
       neutralCount: row.neutralCount,
-      bullishPct: Math.round((row.bullishCount / total) * 100),
-      bearishPct: Math.round((row.bearishCount / total) * 100)
+      positivePct: Math.round((positiveCount / total) * 100),
+      negativePct: Math.round((negativeCount / total) * 100)
     };
   });
 }
@@ -1954,49 +1979,53 @@ function formatLastUpdate(value: string) {
   }).format(new Date(value));
 }
 
-function getMarketBreadth(rows: AssetSignalRow[]): MarketBreadthSummary[] {
+function getMarketBreadth(rows: AssetSignalRow[], timeframe: Timeframe): MarketBreadthSummary[] {
+  const metricKind = timeframe === "4h" ? "regime" : "setup";
+  const positiveLabel = metricKind === "regime" ? "Bullish" : "Long/Buy";
+  const negativeLabel = metricKind === "regime" ? "Bearish" : "Short/Sell";
+  const neutralLabel = metricKind === "regime" ? "Neutral" : "Wait";
+
   if (rows.length === 0) {
     return ([100, 200, 300] as const).map((range) => ({
       range: `Top ${range}` as MarketBreadthSummary["range"],
+      metricKind,
       averageRsi: 0,
-      bullishCount: 0,
-      bearishCount: 0,
+      positiveLabel,
+      negativeLabel,
+      neutralLabel,
+      positiveCount: 0,
+      negativeCount: 0,
       neutralCount: 0,
-      bullishPct: 0,
-      bearishPct: 0
+      positivePct: 0,
+      negativePct: 0
     }));
   }
 
   return ([100, 200, 300] as const).map((range) => {
-    const syntheticRows = Array.from({ length: range }, (_, index) => {
-      const base = rows[index % rows.length];
-      const bandDrift = range === 100 ? 2.4 : range === 200 ? 0 : -2.8;
-      const rsi = clamp(base.rsi14 + Math.sin((index + 1) * 1.47) * 6 + bandDrift, 0, 100);
-      const maDistance = base.maDistancePct + Math.cos((index + 1) * 0.91) * 3 + bandDrift * 0.35;
-
-      if (maDistance > 0 && rsi > 55) return "Bullish";
-      if (maDistance < 0 && rsi < 50) return "Bearish";
-      return "Neutral";
-    });
-    const averageRsi = average(
-      Array.from({ length: range }, (_, index) => {
-        const base = rows[index % rows.length];
-        const bandDrift = range === 100 ? 2.4 : range === 200 ? 0 : -2.8;
-        return clamp(base.rsi14 + Math.sin((index + 1) * 1.47) * 6 + bandDrift, 0, 100);
-      })
-    );
-    const bullishCount = syntheticRows.filter((value) => value === "Bullish").length;
-    const bearishCount = syntheticRows.filter((value) => value === "Bearish").length;
-    const neutralCount = range - bullishCount - bearishCount;
+    const universeRows = rows.slice(0, range);
+    const positiveCount =
+      metricKind === "regime"
+        ? universeRows.filter((asset) => asset.regime4h === "Bullish").length
+        : universeRows.filter((asset) => asset.recommendation30m === "Long/Buy").length;
+    const negativeCount =
+      metricKind === "regime"
+        ? universeRows.filter((asset) => asset.regime4h === "Bearish").length
+        : universeRows.filter((asset) => asset.recommendation30m === "Short/Sell").length;
+    const neutralCount = universeRows.length - positiveCount - negativeCount;
+    const total = universeRows.length || 1;
 
     return {
       range: `Top ${range}` as MarketBreadthSummary["range"],
-      averageRsi,
-      bullishCount,
-      bearishCount,
+      metricKind,
+      averageRsi: average(universeRows.map((asset) => asset.rsi14)),
+      positiveLabel,
+      negativeLabel,
+      neutralLabel,
+      positiveCount,
+      negativeCount,
       neutralCount,
-      bullishPct: Math.round((bullishCount / range) * 100),
-      bearishPct: Math.round((bearishCount / range) * 100)
+      positivePct: Math.round((positiveCount / total) * 100),
+      negativePct: Math.round((negativeCount / total) * 100)
     };
   });
 }
@@ -2054,10 +2083,6 @@ function setupClass(value: AssetSignalRow["recommendation30m"]) {
 
 function average(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
 }
 
 function sortGlyphAscii(direction: SortDirection) {

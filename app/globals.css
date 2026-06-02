@@ -855,6 +855,12 @@ input[type="range"] {
   white-space: nowrap;
 }
 
+.breadth-card-meta {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  row-gap: 3px;
+}
+
 .breadth-card-head strong {
   color: var(--text);
   font-size: 12px;

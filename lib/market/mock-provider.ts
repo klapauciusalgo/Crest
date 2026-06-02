@@ -6,9 +6,8 @@ import {
   type SectorKey,
   type Timeframe
 } from "@/lib/mock-data";
-import type { MarketAssetSnapshot, MarketBreadthSnapshot, MarketDataProvider, MarketSnapshot } from "@/lib/market/types";
-
-const pageUniverse = [100, 200, 300] as const;
+import { buildTimeframeBreadth } from "@/lib/market/breadth";
+import type { MarketAssetSnapshot, MarketDataProvider, MarketSnapshot } from "@/lib/market/types";
 
 export function createMockMarketProvider(): MarketDataProvider {
   return {
@@ -43,7 +42,7 @@ export function getMockMarketSnapshot(timeframe: Timeframe): MarketSnapshot {
   return {
     timeframe,
     assets,
-    breadth: getMarketBreadth(assets, timeframe, updatedAt),
+    breadth: buildTimeframeBreadth(assets, timeframe, updatedAt),
     freshness: {
       timeframe,
       source: "mock",
@@ -58,41 +57,6 @@ export function getMockMarketSnapshot(timeframe: Timeframe): MarketSnapshot {
   };
 }
 
-function getMarketBreadth(rows: MarketAssetSnapshot[], timeframe: Timeframe, updatedAt: string): MarketBreadthSnapshot[] {
-  return pageUniverse.map((range) => {
-    const syntheticRows = Array.from({ length: range }, (_, index) => {
-      const base = rows[index % rows.length];
-      const bandDrift = range === 100 ? 2.4 : range === 200 ? 0 : -2.8;
-      const rsi = clamp(base.rsi14 + Math.sin((index + 1) * 1.47) * 6 + bandDrift, 0, 100);
-      const maDistance = base.maDistancePct + Math.cos((index + 1) * 0.91) * 3 + bandDrift * 0.35;
-
-      if (maDistance > 0 && rsi > 55) return "Bullish";
-      if (maDistance < 0 && rsi < 50) return "Bearish";
-      return "Neutral";
-    });
-    const averageRsi = average(
-      Array.from({ length: range }, (_, index) => {
-        const base = rows[index % rows.length];
-        const bandDrift = range === 100 ? 2.4 : range === 200 ? 0 : -2.8;
-        return clamp(base.rsi14 + Math.sin((index + 1) * 1.47) * 6 + bandDrift, 0, 100);
-      })
-    );
-    const bullishCount = syntheticRows.filter((value) => value === "Bullish").length;
-    const bearishCount = syntheticRows.filter((value) => value === "Bearish").length;
-
-    return {
-      timeframe,
-      universe: `Top ${range}` as MarketBreadthSnapshot["universe"],
-      averageRsi,
-      bullishCount,
-      bearishCount,
-      neutralCount: range - bullishCount - bearishCount,
-      coverageCount: rows.length,
-      updatedAt
-    };
-  });
-}
-
 function getMockUpdatedAt(timeframe: Timeframe) {
   const now = new Date();
   const intervalMinutes = timeframe === "30m" ? 30 : 240;
@@ -103,14 +67,6 @@ function getMockUpdatedAt(timeframe: Timeframe) {
     updatedAt.setUTCHours(Math.floor(now.getUTCHours() / 4) * 4, 2, 0, 0);
   }
   return updatedAt.toISOString();
-}
-
-function average(values: number[]) {
-  return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
 }
 
 export const supportedMockChains = Object.keys(chainColors) as ChainKey[];

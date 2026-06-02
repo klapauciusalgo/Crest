@@ -15,9 +15,9 @@ CONTEXT FORMAT (injected automatically per request)
   "sort": { "key": "priceChange24h", "direction": "desc" },
   "pagination": { "page": 1, "pageSize": 20, "totalRows": 20, "totalPages": 1 },
   "market_breadth": [
-    { "range": "Top 100", "averageRsi": 58.4, "bullishCount": 42, "bearishCount": 31, "neutralCount": 27, "bullishPct": 42, "bearishPct": 31 },
-    { "range": "Top 200", "averageRsi": 54.1, "bullishCount": 74, "bearishCount": 82, "neutralCount": 44, "bullishPct": 37, "bearishPct": 41 },
-    { "range": "Top 300", "averageRsi": 50.2, "bullishCount": 93, "bearishCount": 138, "neutralCount": 69, "bullishPct": 31, "bearishPct": 46 }
+    { "range": "Top 100", "metricKind": "regime", "averageRsi": 58.4, "positiveLabel": "Bullish", "positiveCount": 42, "negativeLabel": "Bearish", "negativeCount": 31, "neutralLabel": "Neutral", "neutralCount": 27, "positivePct": 42, "negativePct": 31 },
+    { "range": "Top 200", "metricKind": "regime", "averageRsi": 54.1, "positiveLabel": "Bullish", "positiveCount": 74, "negativeLabel": "Bearish", "negativeCount": 82, "neutralLabel": "Neutral", "neutralCount": 44, "positivePct": 37, "negativePct": 41 },
+    { "range": "Top 300", "metricKind": "regime", "averageRsi": 50.2, "positiveLabel": "Bullish", "positiveCount": 93, "negativeLabel": "Bearish", "negativeCount": 138, "neutralLabel": "Neutral", "neutralCount": 69, "positivePct": 31, "negativePct": 46 }
   ],
   "multi_timeframe_rules": {
     "regime_4h": {

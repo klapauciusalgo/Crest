@@ -176,8 +176,8 @@ async function upsertBreadth(client: SupabaseClient, snapshot: MarketSnapshot) {
     timeframe: snapshot.timeframe,
     universe_top: Number(item.universe.replace("Top ", "")),
     average_rsi: item.averageRsi,
-    bullish_count: item.bullishCount,
-    bearish_count: item.bearishCount,
+    bullish_count: item.positiveCount,
+    bearish_count: item.negativeCount,
     neutral_count: item.neutralCount,
     coverage_count: item.coverageCount,
     computed_at: computedAt

@@ -53,6 +53,7 @@
 - [x] Market grid pagination added with 20-row pages.
 - [x] Multi-timeframe regime and 30m setup columns added to terminal UI.
 - [x] Market breadth cards added for Top 100, Top 200, and Top 300 with average RSI and regime distribution.
+- [x] Market breadth cards made timeframe-aware: 4h uses regime counts and 30m uses setup counts.
 - [x] Market grid sorting UI stabilized with fixed column layout, reserved sort indicators, and browser verification.
 - [x] Production deployment refreshed after latest terminal UI polish.
 - [x] X/Twitter OAuth app flow implemented with Supabase Auth callback and profile sync.
