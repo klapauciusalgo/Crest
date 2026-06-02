@@ -57,12 +57,14 @@
 - [x] Production deployment refreshed after latest terminal UI polish.
 - [x] X/Twitter OAuth app flow implemented with Supabase Auth callback and profile sync.
 - [x] Ethereum wallet authentication implemented with SIWE signature verification through Supabase Auth.
+- [x] Multi-wallet detection added for EIP-6963, MetaMask, OKX, Bitget, and other EIP-1193 injected wallets.
+- [x] Wallet login moved to Crest-managed SIWE verification with Supabase session creation, removing dependency on Supabase Web3 provider enablement.
 - [x] X OAuth disabled-provider UX hardened so users return to Crest with a clear setup error instead of Supabase JSON.
 
 ## In Progress
 
 - [ ] Backend Phase 4 hardening: Binance Top 300 volume ingestion monitoring and edge-case verification.
-- [ ] Auth provider dashboard/API setup: configure legacy Twitter OAuth 1.0a and Web3 providers in Supabase cloud.
+- [ ] Auth provider dashboard/API setup: configure legacy Twitter OAuth 1.0a in Supabase cloud.
 
 ## Next
 

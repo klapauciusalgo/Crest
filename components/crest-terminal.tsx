@@ -47,6 +47,33 @@ type ViewMode = "terminal" | "admin";
 type AuthMode = "visitor" | "user" | "admin";
 type AuthStatus = "checking" | "signed-out" | "working" | "signed-in" | "error";
 type AuthAction = "x" | "wallet" | null;
+type EthereumProvider = {
+  isBitKeep?: boolean;
+  isBitget?: boolean;
+  isCoinbaseWallet?: boolean;
+  isMetaMask?: boolean;
+  isOkxWallet?: boolean;
+  isOKExWallet?: boolean;
+  isRabby?: boolean;
+  providers?: EthereumProvider[];
+  request: (payload: { method: string; params?: unknown[] }) => Promise<unknown>;
+};
+type DetectedWallet = {
+  icon?: string;
+  id: string;
+  name: string;
+  provider: EthereumProvider;
+  rdns?: string;
+};
+type Eip6963ProviderDetail = {
+  info: {
+    icon?: string;
+    name: string;
+    rdns: string;
+    uuid: string;
+  };
+  provider: EthereumProvider;
+};
 type SortKey = keyof Pick<
   AssetSignalRow,
   | "symbol"
@@ -195,6 +222,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
   const [authAction, setAuthAction] = useState<AuthAction>(null);
   const [authMessage, setAuthMessage] = useState("Checking Supabase session.");
+  const [detectedWallets, setDetectedWallets] = useState<DetectedWallet[]>([]);
   const [view, setView] = useState<ViewMode>(initialView);
   const [timeframe, setTimeframe] = useState<Timeframe>("4h");
   const [selectedChains, setSelectedChains] = useState<ChainKey[]>(allChains);
@@ -537,6 +565,21 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
     }
   }, [authMode, view]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const cleanup = detectEthereumWallets((wallets) => {
+      if (isMounted) {
+        setDetectedWallets(wallets);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      cleanup();
+    };
+  }, []);
+
   const isSignedOut = authMode === "visitor";
 
   async function signInWithX() {
@@ -546,23 +589,21 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
     window.location.assign("/auth/sign-in/x");
   }
 
-  async function signInWithWallet() {
+  async function signInWithWallet(walletId?: string) {
     setAuthStatus("working");
     setAuthAction("wallet");
     setAuthMessage("Waiting for wallet signature.");
 
     try {
-      const walletWindow = window as Window & {
-        ethereum?: {
-          request: (payload: { method: string; params?: unknown[] }) => Promise<unknown>;
-        };
-      };
       const statement = "Sign in to Crest to connect market filters, pinned assets, and AI context to this session.";
-      const ethereum = walletWindow.ethereum;
+      const wallet = getWalletForConnection(detectedWallets, walletId);
 
-      if (!ethereum?.request) {
+      if (!wallet?.provider?.request) {
         throw new Error("No Ethereum wallet was detected in this browser.");
       }
+
+      const ethereum = wallet.provider;
+      setAuthMessage(`Waiting for ${wallet.name} signature.`);
 
       const accounts = (await ethereum.request({ method: "eth_requestAccounts" })) as string[];
       const address = accounts[0];
@@ -601,7 +642,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
       setAuthMode(payload.profile.role === "admin" ? "admin" : "user");
       setAuthStatus("signed-in");
       setAuthAction(null);
-      setAuthMessage("Wallet session ready.");
+      setAuthMessage(`${wallet.name} session ready.`);
     } catch (error) {
       setAuthStatus("error");
       setAuthAction(null);
@@ -702,6 +743,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
         authAction={authAction}
         authMessage={authMessage}
         authStatus={authStatus}
+        detectedWallets={detectedWallets}
         onSignInWithWallet={signInWithWallet}
         onSignInWithX={signInWithX}
       />
@@ -897,16 +939,19 @@ function AuthEntry({
   authAction,
   authMessage,
   authStatus,
+  detectedWallets,
   onSignInWithWallet,
   onSignInWithX
 }: {
   authAction: AuthAction;
   authMessage: string;
   authStatus: AuthStatus;
-  onSignInWithWallet: () => void;
+  detectedWallets: DetectedWallet[];
+  onSignInWithWallet: (walletId?: string) => void;
   onSignInWithX: () => void;
 }) {
   const isBusy = authStatus === "checking" || authStatus === "working";
+  const hasWallets = detectedWallets.length > 0;
 
   return (
     <main className="entry-shell">
@@ -968,13 +1013,29 @@ function AuthEntry({
               <small>Supabase Twitter OAuth</small>
             </span>
           </button>
-          <button disabled={isBusy} onClick={onSignInWithWallet}>
+          <button disabled={isBusy} onClick={() => onSignInWithWallet()}>
             <Wallet size={16} />
             <span>
               {authAction === "wallet" ? "Waiting for signature" : "Connect wallet"}
-              <small>Ethereum SIWE via Supabase</small>
+              <small>{hasWallets ? `${detectedWallets.length} wallet${detectedWallets.length > 1 ? "s" : ""} detected` : "MetaMask, OKX, Bitget, and EIP-1193 wallets"}</small>
             </span>
           </button>
+          {hasWallets && (
+            <div className="wallet-picker" aria-label="Detected wallets">
+              {detectedWallets.map((wallet) => (
+                <button
+                  className="wallet-option"
+                  disabled={isBusy}
+                  key={wallet.id}
+                  onClick={() => onSignInWithWallet(wallet.id)}
+                  type="button"
+                >
+                  {wallet.icon ? <img alt="" src={wallet.icon} /> : <span>{wallet.name.slice(0, 1)}</span>}
+                  <strong>{wallet.name}</strong>
+                </button>
+              ))}
+            </div>
+          )}
           {authMessage && <div className={`auth-message ${authStatus}`}>{authMessage}</div>}
         </div>
         <div className="entry-footer">
@@ -1659,6 +1720,104 @@ function normalizeApiAsset(asset: AssetSignalRow): AssetSignalRow {
     tradeCount24h: asset.tradeCount24h || 0,
     blacklistStatus: asset.blacklistStatus || "unknown"
   };
+}
+
+function detectEthereumWallets(onUpdate: (wallets: DetectedWallet[]) => void) {
+  const discovered = new Map<string, DetectedWallet>();
+
+  function publish() {
+    onUpdate(Array.from(discovered.values()).sort(sortDetectedWallets));
+  }
+
+  function addWallet(wallet: DetectedWallet) {
+    if (!wallet.provider?.request) return;
+
+    const existing = Array.from(discovered.values()).find((item) => item.provider === wallet.provider);
+    if (existing) return;
+
+    discovered.set(wallet.id, wallet);
+    publish();
+  }
+
+  function handleEip6963(event: Event) {
+    const detail = (event as CustomEvent<Eip6963ProviderDetail>).detail;
+    if (!detail?.provider?.request) return;
+
+    addWallet({
+      icon: detail.info.icon,
+      id: detail.info.uuid || detail.info.rdns || detail.info.name,
+      name: detail.info.name || getProviderDisplayName(detail.provider),
+      provider: detail.provider,
+      rdns: detail.info.rdns
+    });
+  }
+
+  window.addEventListener("eip6963:announceProvider", handleEip6963);
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+
+  window.setTimeout(() => {
+    getFallbackEthereumProviders().forEach((provider, index) => {
+      addWallet({
+        id: `${getProviderDisplayName(provider)}-${index}`,
+        name: getProviderDisplayName(provider),
+        provider
+      });
+    });
+  }, 250);
+
+  window.setTimeout(publish, 320);
+
+  return () => window.removeEventListener("eip6963:announceProvider", handleEip6963);
+}
+
+function getFallbackEthereumProviders() {
+  const walletWindow = window as Window & {
+    bitgetEthereum?: EthereumProvider;
+    bitkeep?: { ethereum?: EthereumProvider };
+    ethereum?: EthereumProvider;
+    okxwallet?: { ethereum?: EthereumProvider };
+  };
+  const providers: EthereumProvider[] = [];
+  const ethereum = walletWindow.ethereum;
+
+  if (ethereum?.providers?.length) {
+    providers.push(...ethereum.providers);
+  } else if (ethereum?.request) {
+    providers.push(ethereum);
+  }
+
+  if (walletWindow.okxwallet?.ethereum?.request) providers.push(walletWindow.okxwallet.ethereum);
+  if (walletWindow.bitkeep?.ethereum?.request) providers.push(walletWindow.bitkeep.ethereum);
+  if (walletWindow.bitgetEthereum?.request) providers.push(walletWindow.bitgetEthereum);
+
+  return providers.filter((provider, index, list) => list.findIndex((item) => item === provider) === index);
+}
+
+function getWalletForConnection(wallets: DetectedWallet[], walletId?: string) {
+  if (walletId) return wallets.find((wallet) => wallet.id === walletId);
+  return wallets.find((wallet) => /metamask/i.test(wallet.name)) || wallets[0];
+}
+
+function sortDetectedWallets(first: DetectedWallet, second: DetectedWallet) {
+  return getWalletPriority(first.name) - getWalletPriority(second.name) || first.name.localeCompare(second.name);
+}
+
+function getWalletPriority(name: string) {
+  if (/metamask/i.test(name)) return 0;
+  if (/okx/i.test(name)) return 1;
+  if (/bitget|bitkeep/i.test(name)) return 2;
+  if (/rabby/i.test(name)) return 3;
+  if (/coinbase/i.test(name)) return 4;
+  return 9;
+}
+
+function getProviderDisplayName(provider: EthereumProvider) {
+  if (provider.isMetaMask) return "MetaMask";
+  if (provider.isOkxWallet || provider.isOKExWallet) return "OKX Wallet";
+  if (provider.isBitget || provider.isBitKeep) return "Bitget Wallet";
+  if (provider.isRabby) return "Rabby";
+  if (provider.isCoinbaseWallet) return "Coinbase Wallet";
+  return "Browser Wallet";
 }
 
 function buildClientProfileFallback(user: User): CrestAuthProfile {

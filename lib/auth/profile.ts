@@ -81,6 +81,9 @@ export async function syncUserProfile(user: User): Promise<CrestAuthProfile> {
 }
 
 function getPrimaryProvider(user: User) {
+  const metadataProvider = user.user_metadata?.provider;
+  if (metadataProvider === "ethereum" || metadataProvider === "web3") return metadataProvider;
+
   const provider = user.app_metadata?.provider;
   if (typeof provider === "string") return provider;
   return user.identities?.[0]?.provider || "supabase";

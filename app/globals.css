@@ -1210,6 +1210,47 @@ input[type="range"] {
   font-weight: 500;
 }
 
+.wallet-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.auth-actions .wallet-option {
+  min-height: 34px;
+  gap: 8px;
+  border-color: var(--border);
+  background: rgba(20, 21, 25, 0.62);
+  padding: 0 9px;
+  font-size: 11px;
+}
+
+.wallet-option img,
+.wallet-option > span {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--border);
+  background: #111318;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.wallet-option img {
+  border: 0;
+  background: transparent;
+}
+
+.wallet-option strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .auth-message {
   border: 1px solid var(--border);
   background: rgba(20, 21, 25, 0.72);
