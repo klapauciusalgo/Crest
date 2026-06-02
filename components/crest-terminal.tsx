@@ -749,6 +749,10 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
     }, 18);
   }
 
+  if (isSignedOut && authStatus === "checking") {
+    return <AuthRestoring />;
+  }
+
   if (isSignedOut) {
     return (
       <AuthEntry
@@ -943,6 +947,28 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
         onToggle={() => setAiOpen((current) => !current)}
         onPreset={runAiPreset}
       />
+    </main>
+  );
+}
+
+function AuthRestoring() {
+  return (
+    <main className="entry-shell">
+      <section className="auth-restoring" aria-live="polite" aria-label="Restoring Crest session">
+        <div className="entry-brand">
+          <span className="brand-mark">C</span>
+          <span>Crest Terminal</span>
+        </div>
+        <div className="entry-kernel" aria-hidden="true">
+          <span />
+          <span>Restoring session</span>
+        </div>
+        <div className="restore-lines" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+      </section>
     </main>
   );
 }
