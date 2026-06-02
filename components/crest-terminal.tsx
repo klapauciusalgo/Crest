@@ -1025,7 +1025,6 @@ function AuthEntry({
             <Mail size={16} />
             <span>
               {authAction === "google" ? "Redirecting to Google" : "Continue with Gmail"}
-              <small>Only @gmail.com accounts are allowed</small>
             </span>
           </button>
           <button disabled={isBusy} onClick={() => onSignInWithWallet()}>
