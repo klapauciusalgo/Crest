@@ -57,11 +57,12 @@
 - [x] Production deployment refreshed after latest terminal UI polish.
 - [x] X OAuth app flow implemented with Supabase Auth callback and profile sync.
 - [x] Ethereum wallet authentication implemented with SIWE signature verification through Supabase Auth.
+- [x] X OAuth disabled-provider UX hardened so users return to Crest with a clear setup error instead of Supabase JSON.
 
 ## In Progress
 
 - [ ] Backend Phase 4 hardening: Binance Top 300 volume ingestion monitoring and edge-case verification.
-- [ ] Auth provider dashboard verification: enable/configure X OAuth and Web3 provider in Supabase cloud.
+- [ ] Auth provider dashboard setup: X OAuth is still disabled in Supabase cloud; enable/configure X and Web3 providers.
 
 ## Next
 

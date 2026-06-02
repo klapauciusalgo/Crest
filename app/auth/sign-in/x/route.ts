@@ -26,5 +26,27 @@ export async function GET(request: Request) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  const providerStatus = await checkProviderStatus(data.url);
+  if (providerStatus === "disabled") {
+    redirectUrl.searchParams.set("auth_error", "x_provider_disabled");
+    return NextResponse.redirect(redirectUrl);
+  }
+
   return NextResponse.redirect(data.url);
+}
+
+async function checkProviderStatus(authorizeUrl: string) {
+  try {
+    const response = await fetch(authorizeUrl, {
+      cache: "no-store",
+      redirect: "manual"
+    });
+
+    if (response.status !== 400) return "ready";
+
+    const body = (await response.json().catch(() => null)) as { msg?: string } | null;
+    return body?.msg?.toLowerCase().includes("provider is not enabled") ? "disabled" : "ready";
+  } catch {
+    return "ready";
+  }
 }

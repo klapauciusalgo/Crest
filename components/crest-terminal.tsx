@@ -376,6 +376,13 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     let isMounted = true;
+    const authError = getAuthErrorFromLocation();
+
+    if (authError) {
+      setAuthStatus("error");
+      setAuthMessage(authError);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
 
     fetch("/api/auth/profile", { cache: "no-store" })
       .then((response) => {
@@ -397,8 +404,10 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
         if (!isMounted) return;
         setAuthMode("visitor");
         setAuthProfile(null);
-        setAuthStatus("signed-out");
-        setAuthMessage("");
+        if (!authError) {
+          setAuthStatus("signed-out");
+          setAuthMessage("");
+        }
       });
 
     if (!supabase) {
@@ -1678,6 +1687,33 @@ function getStringMetadata(value: unknown) {
 
 function getClientErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unknown authentication error.";
+}
+
+function getAuthErrorFromLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const value = params.get("auth_error");
+
+  if (value === "x_provider_disabled") {
+    return "X OAuth is not enabled in Supabase Auth yet. Enable the X provider in Supabase, then retry.";
+  }
+
+  if (value === "x_oauth_unavailable") {
+    return "X OAuth could not be started from Supabase.";
+  }
+
+  if (value === "exchange_failed") {
+    return "Supabase could not exchange the OAuth callback code.";
+  }
+
+  if (value === "auth_not_configured") {
+    return "Supabase Auth is not configured for this deployment.";
+  }
+
+  if (value === "missing_code") {
+    return "The OAuth callback did not include a login code.";
+  }
+
+  return null;
 }
 
 function createEthereumSignInMessage({
