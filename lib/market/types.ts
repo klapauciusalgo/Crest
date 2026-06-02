@@ -94,6 +94,52 @@ export type MarketSnapshot = {
   freshness: DataFreshness;
 };
 
+export type MarketSnapshotHistoryPoint = Pick<
+  IndicatorSnapshot,
+  | "timeframe"
+  | "price"
+  | "priceChange24h"
+  | "volumeChange24h"
+  | "rsi14"
+  | "ma111"
+  | "maDistancePct"
+  | "regime4h"
+  | "recommendation30m"
+  | "coverageStatus"
+  | "source"
+> & {
+  price4h: number;
+  ma1114h: number;
+  maDistance4hPct: number;
+  rsi4h: number;
+  rsi30m: number;
+  signalReason: string;
+  candleCloseAt: string;
+  computedAt: string;
+};
+
+export type MarketCandlePoint = {
+  timeframe: Timeframe;
+  time: number;
+  openTime: string;
+  closeTime: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  source: MarketDataSource;
+};
+
+export type MarketAssetDetail = {
+  asset: MarketUniverseAsset;
+  latestSnapshot: MarketAssetSnapshot;
+  history: MarketSnapshotHistoryPoint[];
+  historySource: "persisted" | "mixed" | "derived_from_ohlc" | "mock";
+  candles: MarketCandlePoint[];
+  freshness: DataFreshness;
+};
+
 export type MarketDataProvider = {
   getSnapshot(timeframe: Timeframe): Promise<MarketSnapshot>;
 };

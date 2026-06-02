@@ -61,6 +61,8 @@
 - [x] Multi-wallet detection added for EIP-6963, MetaMask, OKX, Bitget, and other EIP-1193 injected wallets.
 - [x] Wallet login moved to Crest-managed SIWE verification with Supabase session creation, removing dependency on Supabase Web3 provider enablement.
 - [x] X OAuth disabled-provider UX hardened so users return to Crest with a clear setup error instead of Supabase JSON.
+- [x] Ticker detail page added with timeframe-specific snapshot history and OHLC candlestick chart.
+- [x] Market snapshot history persistence added for future 30m and 4h detail records.
 
 ## In Progress
 

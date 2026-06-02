@@ -3,6 +3,28 @@ import { getSupabaseServerClient, getSupabaseServerConfig } from "@/lib/supabase
 import type { MarketAssetSnapshot, MarketSnapshot, OhlcvCandle } from "@/lib/market/types";
 
 type AssetIdMap = Map<string, string>;
+type MarketSnapshotRow = {
+  asset_id: string;
+  timeframe: MarketSnapshot["timeframe"];
+  price: number;
+  price_change_24h: number;
+  volume_change_24h: number;
+  rsi_14: number;
+  ma_111: number;
+  ma_distance_pct: number;
+  regime_4h: MarketAssetSnapshot["regime4h"];
+  recommendation_30m: MarketAssetSnapshot["recommendation30m"];
+  price_4h: number;
+  ma_111_4h: number;
+  ma_distance_4h_pct: number;
+  rsi_4h: number;
+  rsi_30m: number;
+  signal_reason: string;
+  coverage_status: MarketAssetSnapshot["coverageStatus"];
+  source: MarketAssetSnapshot["source"];
+  candle_close_at: string;
+  computed_at: string;
+};
 
 export type MarketSnapshotWriteResult = {
   assets: number;
@@ -26,7 +48,8 @@ export async function writeMarketSnapshotToSupabase(snapshot: MarketSnapshot): P
 
   const assetIdMap = await upsertAssets(client, snapshot.assets);
   await deleteExistingMarketSnapshots(client, snapshot);
-  await upsertMarketSnapshots(client, snapshot, assetIdMap);
+  const snapshotRows = await upsertMarketSnapshots(client, snapshot, assetIdMap);
+  await upsertMarketSnapshotHistory(client, snapshotRows);
   await upsertBreadth(client, snapshot);
   const groupSnapshotCount = await upsertGroupSnapshots(client, snapshot);
   await recordRefreshRun(client, snapshot, "succeeded", null);
@@ -138,7 +161,25 @@ async function deleteExistingMarketSnapshots(client: SupabaseClient, snapshot: M
 
 async function upsertMarketSnapshots(client: SupabaseClient, snapshot: MarketSnapshot, assetIdMap: AssetIdMap) {
   const computedAt = new Date().toISOString();
-  const rows = snapshot.assets.map((asset) => {
+  const rows = buildMarketSnapshotRows(snapshot, assetIdMap, computedAt);
+
+  const { error } = await client.from("market_snapshots").upsert(rows, { onConflict: "asset_id,timeframe" });
+  if (error) throw error;
+
+  return rows;
+}
+
+async function upsertMarketSnapshotHistory(client: SupabaseClient, rows: MarketSnapshotRow[]) {
+  for (let index = 0; index < rows.length; index += 500) {
+    const { error } = await client
+      .from("market_snapshot_history")
+      .upsert(rows.slice(index, index + 500), { onConflict: "asset_id,timeframe,candle_close_at,source" });
+    if (error) throw error;
+  }
+}
+
+function buildMarketSnapshotRows(snapshot: MarketSnapshot, assetIdMap: AssetIdMap, computedAt: string): MarketSnapshotRow[] {
+  return snapshot.assets.map((asset) => {
     const assetId = assetIdMap.get(asset.sourceAssetId);
     if (!assetId) throw new Error(`Missing Supabase asset id for ${asset.symbol}.`);
 
@@ -165,9 +206,6 @@ async function upsertMarketSnapshots(client: SupabaseClient, snapshot: MarketSna
       computed_at: computedAt
     };
   });
-
-  const { error } = await client.from("market_snapshots").upsert(rows, { onConflict: "asset_id,timeframe" });
-  if (error) throw error;
 }
 
 async function upsertBreadth(client: SupabaseClient, snapshot: MarketSnapshot) {

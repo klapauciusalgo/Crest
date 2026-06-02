@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Activity,
   BarChart3,
@@ -1428,8 +1429,10 @@ function AssetGrid({
                     </button>
                   </td>
                   <td className="asset-cell">
-                    <strong>${asset.symbol}</strong>
-                    <span>{asset.name}</span>
+                    <Link className="asset-link" href={`/assets/${asset.symbol}?timeframe=${timeframe}`}>
+                      <strong>${asset.symbol}</strong>
+                      <span>{asset.name}</span>
+                    </Link>
                   </td>
                   <td>{formatPrice(asset.price)}</td>
                   <td className={asset.priceChange24h >= 0 ? "positive" : "negative"}>{formatPct(asset.priceChange24h)}</td>
