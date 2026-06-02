@@ -11,6 +11,7 @@ import {
   CircleUserRound,
   Command,
   Database,
+  LogOut,
   Pin,
   Search,
   Settings,
@@ -18,7 +19,9 @@ import {
   Sparkles,
   Wallet
 } from "lucide-react";
-import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import type { User } from "@supabase/supabase-js";
+import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
+import type { CrestAuthProfile } from "@/lib/auth/profile";
 import { formatCompactDollar, formatPct, formatPrice } from "@/lib/formatters";
 import {
   AssetSignalRow,
@@ -38,9 +41,12 @@ import {
   providerConfigs,
   sectorColors
 } from "@/lib/mock-data";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type ViewMode = "terminal" | "admin";
 type AuthMode = "visitor" | "user" | "admin";
+type AuthStatus = "checking" | "signed-out" | "working" | "signed-in" | "error";
+type AuthAction = "x" | "wallet" | null;
 type SortKey = keyof Pick<
   AssetSignalRow,
   | "symbol"
@@ -184,7 +190,11 @@ const multiTimeframeRules = {
 const pageSize = 20;
 
 export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
-  const [authMode, setAuthMode] = useState<AuthMode>(initialView === "admin" ? "admin" : "visitor");
+  const [authMode, setAuthMode] = useState<AuthMode>("visitor");
+  const [authProfile, setAuthProfile] = useState<CrestAuthProfile | null>(null);
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
+  const [authAction, setAuthAction] = useState<AuthAction>(null);
+  const [authMessage, setAuthMessage] = useState("Checking Supabase session.");
   const [view, setView] = useState<ViewMode>(initialView);
   const [timeframe, setTimeframe] = useState<Timeframe>("4h");
   const [selectedChains, setSelectedChains] = useState<ChainKey[]>(allChains);
@@ -255,6 +265,39 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const marketBreadth = useMemo(
     () => remoteBreadth[timeframe] || getMarketBreadth(sourceAssets),
     [remoteBreadth, sourceAssets, timeframe]
+  );
+  const syncProfileFromUser = useCallback(
+    async (user: User, message = "Session ready.") => {
+      try {
+        const response = await fetch("/api/auth/profile", {
+          cache: "no-store",
+          method: "POST"
+        });
+
+        if (!response.ok) {
+          throw new Error(`Profile sync returned ${response.status}`);
+        }
+
+        const payload = (await response.json()) as { profile: CrestAuthProfile };
+        setAuthProfile(payload.profile);
+        setAuthMode(payload.profile.role === "admin" ? "admin" : "user");
+        setAuthStatus("signed-in");
+        setAuthAction(null);
+        setAuthMessage(message);
+
+        if (initialView === "admin" && payload.profile.role !== "admin") {
+          setView("terminal");
+        }
+      } catch (error) {
+        const fallback = buildClientProfileFallback(user);
+        setAuthProfile(fallback);
+        setAuthMode("user");
+        setAuthStatus("signed-in");
+        setAuthAction(null);
+        setAuthMessage(`Signed in, but profile persistence is pending: ${getClientErrorMessage(error)}`);
+      }
+    },
+    [initialView]
   );
   const aiContext = useMemo<AiContextSnapshot>(
     () => ({
@@ -329,6 +372,64 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
       timeframe
     ]
   );
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    let isMounted = true;
+
+    fetch("/api/auth/profile", { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Profile check returned ${response.status}`);
+        return response.json() as Promise<{ profile: CrestAuthProfile }>;
+      })
+      .then((payload) => {
+        if (!isMounted) return;
+        setAuthProfile(payload.profile);
+        setAuthMode(payload.profile.role === "admin" ? "admin" : "user");
+        setAuthStatus("signed-in");
+        setAuthMessage("Session restored.");
+
+        if (initialView === "admin" && payload.profile.role !== "admin") {
+          setView("terminal");
+        }
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setAuthMode("visitor");
+        setAuthProfile(null);
+        setAuthStatus("signed-out");
+        setAuthMessage("");
+      });
+
+    if (!supabase) {
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+
+      if (event === "SIGNED_OUT" || !session?.user) {
+        setAuthMode("visitor");
+        setAuthProfile(null);
+        setAuthStatus("signed-out");
+        setAuthAction(null);
+        setAuthMessage("Signed out.");
+        setView("terminal");
+        return;
+      }
+
+      void syncProfileFromUser(session.user, event === "SIGNED_IN" ? "Session ready." : "Session refreshed.");
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [syncProfileFromUser]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -421,7 +522,105 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
     setCurrentPage((page) => Math.min(page, totalPages));
   }, [totalPages]);
 
+  useEffect(() => {
+    if (view === "admin" && authMode !== "admin") {
+      setView("terminal");
+    }
+  }, [authMode, view]);
+
   const isSignedOut = authMode === "visitor";
+
+  async function signInWithX() {
+    setAuthStatus("working");
+    setAuthAction("x");
+    setAuthMessage("Opening X OAuth.");
+    window.location.assign("/auth/sign-in/x");
+  }
+
+  async function signInWithWallet() {
+    setAuthStatus("working");
+    setAuthAction("wallet");
+    setAuthMessage("Waiting for wallet signature.");
+
+    try {
+      const walletWindow = window as Window & {
+        ethereum?: {
+          request: (payload: { method: string; params?: unknown[] }) => Promise<unknown>;
+        };
+      };
+      const statement = "Sign in to Crest to connect market filters, pinned assets, and AI context to this session.";
+      const ethereum = walletWindow.ethereum;
+
+      if (!ethereum?.request) {
+        throw new Error("No Ethereum wallet was detected in this browser.");
+      }
+
+      const accounts = (await ethereum.request({ method: "eth_requestAccounts" })) as string[];
+      const address = accounts[0];
+
+      if (!address) {
+        throw new Error("No wallet account was selected.");
+      }
+
+      const chainIdHex = (await ethereum.request({ method: "eth_chainId" })) as string;
+      const chainId = Number.parseInt(chainIdHex, 16);
+      const message = createEthereumSignInMessage({
+        address,
+        chainId: Number.isFinite(chainId) ? chainId : 1,
+        statement
+      });
+      const signature = (await ethereum.request({
+        method: "personal_sign",
+        params: [stringToHex(message), address]
+      })) as string;
+      const response = await fetch("/api/auth/wallet/ethereum", {
+        body: JSON.stringify({ message, signature }),
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(payload.error || `Wallet auth returned ${response.status}`);
+      }
+
+      const payload = (await response.json()) as { profile: CrestAuthProfile };
+      setAuthProfile(payload.profile);
+      setAuthMode(payload.profile.role === "admin" ? "admin" : "user");
+      setAuthStatus("signed-in");
+      setAuthAction(null);
+      setAuthMessage("Wallet session ready.");
+    } catch (error) {
+      setAuthStatus("error");
+      setAuthAction(null);
+      setAuthMessage(getClientErrorMessage(error));
+    }
+  }
+
+  async function signOut() {
+    const supabase = getSupabaseBrowserClient();
+    setAuthStatus("working");
+    setAuthAction(null);
+    setAuthMessage("Signing out.");
+
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+
+    await fetch("/api/auth/sign-out", {
+      cache: "no-store",
+      method: "POST"
+    }).catch(() => null);
+
+    setAuthMode("visitor");
+    setAuthProfile(null);
+    setAuthStatus("signed-out");
+    setAuthMessage("Signed out.");
+    setView("terminal");
+  }
 
   function cycleSort(key: SortKey) {
     if (sortKey !== key) {
@@ -489,16 +688,25 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   }
 
   if (isSignedOut) {
-    return <AuthEntry onAuth={setAuthMode} />;
+    return (
+      <AuthEntry
+        authAction={authAction}
+        authMessage={authMessage}
+        authStatus={authStatus}
+        onSignInWithWallet={signInWithWallet}
+        onSignInWithX={signInWithX}
+      />
+    );
   }
 
   return (
     <main className="terminal-shell">
       <Header
         authMode={authMode}
+        authProfile={authProfile}
         timeframe={timeframe}
         view={view}
-        onAuth={setAuthMode}
+        onSignOut={signOut}
         onTimeframe={setTimeframe}
         onView={setView}
       />
@@ -676,7 +884,21 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   );
 }
 
-function AuthEntry({ onAuth }: { onAuth: (mode: AuthMode) => void }) {
+function AuthEntry({
+  authAction,
+  authMessage,
+  authStatus,
+  onSignInWithWallet,
+  onSignInWithX
+}: {
+  authAction: AuthAction;
+  authMessage: string;
+  authStatus: AuthStatus;
+  onSignInWithWallet: () => void;
+  onSignInWithX: () => void;
+}) {
+  const isBusy = authStatus === "checking" || authStatus === "working";
+
   return (
     <main className="entry-shell">
       <div className="entry-tape" aria-hidden="true">
@@ -721,34 +943,35 @@ function AuthEntry({ onAuth }: { onAuth: (mode: AuthMode) => void }) {
             <span>Context engine armed</span>
           </div>
           <h1>Market structure, chain strength, and AI context in one dense workspace.</h1>
-          <p>Enter as a mock analyst to test the complete product journey before production auth and live data are connected.</p>
+          <p>Sign in as an analyst to connect live market context, saved workspace state, and future AI sessions.</p>
           <div className="entry-status" aria-label="Prototype status">
-            <span>Mock data</span>
+            <span>Live Binance</span>
             <span>30m / 4h</span>
-            <span>AI drawer ready</span>
+            <span>Supabase Auth</span>
           </div>
         </div>
         <div className="auth-actions">
           <p className="micro-label">Access</p>
-          <button onClick={() => onAuth("user")}>
+          <button disabled={isBusy} onClick={onSignInWithX}>
             <CircleUserRound size={16} />
             <span>
-              Continue with X mock
-              <small>OAuth route simulation</small>
+              {authAction === "x" ? "Opening X OAuth" : "Continue with X"}
+              <small>Supabase OAuth 2.0</small>
             </span>
           </button>
-          <button onClick={() => onAuth("user")}>
+          <button disabled={isBusy} onClick={onSignInWithWallet}>
             <Wallet size={16} />
             <span>
-              Connect wallet mock
-              <small>SIWE journey preview</small>
+              {authAction === "wallet" ? "Waiting for signature" : "Connect wallet"}
+              <small>Ethereum SIWE via Supabase</small>
             </span>
           </button>
+          {authMessage && <div className={`auth-message ${authStatus}`}>{authMessage}</div>}
         </div>
         <div className="entry-footer">
-          <span>Prototype build</span>
+          <span>Production auth</span>
           <span>Vercel preview</span>
-          <span>Supabase pending</span>
+          <span>Supabase session</span>
         </div>
       </section>
     </main>
@@ -757,19 +980,23 @@ function AuthEntry({ onAuth }: { onAuth: (mode: AuthMode) => void }) {
 
 function Header({
   authMode,
+  authProfile,
   timeframe,
   view,
-  onAuth,
+  onSignOut,
   onTimeframe,
   onView
 }: {
   authMode: AuthMode;
+  authProfile: CrestAuthProfile | null;
   timeframe: Timeframe;
   view: ViewMode;
-  onAuth: (mode: AuthMode) => void;
+  onSignOut: () => void;
   onTimeframe: (timeframe: Timeframe) => void;
   onView: (view: ViewMode) => void;
 }) {
+  const sessionLabel = authMode === "admin" ? "Admin" : authProfile?.displayName || "Analyst";
+
   return (
     <header className="topbar">
       <button className="brand" onClick={() => onView("terminal")} aria-label="Open terminal">
@@ -781,10 +1008,12 @@ function Header({
           <Command size={14} />
           Terminal
         </button>
-        <button className={view === "admin" ? "active" : ""} onClick={() => onView("admin")}>
-          <Settings size={14} />
-          AI config
-        </button>
+        {authMode === "admin" && (
+          <button className={view === "admin" ? "active" : ""} onClick={() => onView("admin")}>
+            <Settings size={14} />
+            AI config
+          </button>
+        )}
       </nav>
       <div className="timeframe-toggle" aria-label="Timeframe">
         {(["30m", "4h"] as Timeframe[]).map((item) => (
@@ -793,9 +1022,10 @@ function Header({
           </button>
         ))}
       </div>
-      <button className="auth-chip" onClick={() => onAuth(authMode === "visitor" ? "user" : "visitor")}>
+      <button className="auth-chip" onClick={onSignOut}>
         <span className={`session-dot ${authMode}`} />
-        {authMode === "visitor" ? "Signed out" : authMode === "admin" ? "Admin mock" : "Analyst mock"}
+        {sessionLabel}
+        <LogOut size={13} />
       </button>
     </header>
   );
@@ -1420,6 +1650,71 @@ function normalizeApiAsset(asset: AssetSignalRow): AssetSignalRow {
     tradeCount24h: asset.tradeCount24h || 0,
     blacklistStatus: asset.blacklistStatus || "unknown"
   };
+}
+
+function buildClientProfileFallback(user: User): CrestAuthProfile {
+  const metadata = user.user_metadata || {};
+  const displayName =
+    getStringMetadata(metadata.name) ||
+    getStringMetadata(metadata.full_name) ||
+    getStringMetadata(metadata.user_name) ||
+    getStringMetadata(metadata.preferred_username) ||
+    user.email ||
+    "Crest analyst";
+
+  return {
+    id: user.id,
+    role: "user",
+    displayName,
+    provider: typeof user.app_metadata?.provider === "string" ? user.app_metadata.provider : "supabase",
+    xUserId: null,
+    walletAddress: getStringMetadata(metadata.wallet_address) || getStringMetadata(metadata.address) || null
+  };
+}
+
+function getStringMetadata(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function getClientErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown authentication error.";
+}
+
+function createEthereumSignInMessage({
+  address,
+  chainId,
+  statement
+}: {
+  address: string;
+  chainId: number;
+  statement: string;
+}) {
+  const origin = window.location.origin;
+  const domain = window.location.host;
+
+  return [
+    `${domain} wants you to sign in with your Ethereum account:`,
+    address,
+    "",
+    statement,
+    "",
+    `URI: ${origin}/`,
+    "Version: 1",
+    `Chain ID: ${chainId}`,
+    `Nonce: ${createSiweNonce()}`,
+    `Issued At: ${new Date().toISOString()}`
+  ].join("\n");
+}
+
+function createSiweNonce() {
+  const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const values = new Uint8Array(17);
+  window.crypto.getRandomValues(values);
+  return Array.from(values, (value) => alphabet[value % alphabet.length]).join("");
+}
+
+function stringToHex(value: string) {
+  return `0x${Array.from(new TextEncoder().encode(value), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function normalizeChain(value: string): ChainKey {

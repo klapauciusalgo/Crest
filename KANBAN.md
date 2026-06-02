@@ -55,10 +55,13 @@
 - [x] Market breadth cards added for Top 100, Top 200, and Top 300 with average RSI and regime distribution.
 - [x] Market grid sorting UI stabilized with fixed column layout, reserved sort indicators, and browser verification.
 - [x] Production deployment refreshed after latest terminal UI polish.
+- [x] X OAuth app flow implemented with Supabase Auth callback and profile sync.
+- [x] Ethereum wallet authentication implemented with SIWE signature verification through Supabase Auth.
 
 ## In Progress
 
 - [ ] Backend Phase 4 hardening: Binance Top 300 volume ingestion monitoring and edge-case verification.
+- [ ] Auth provider dashboard verification: enable/configure X OAuth and Web3 provider in Supabase cloud.
 
 ## Next
 
@@ -70,12 +73,11 @@
 
 ## Backlog
 
-- [ ] X OAuth through Supabase Auth.
-- [ ] SIWE wallet authentication.
 - [ ] Admin AI provider encryption.
 - [ ] Provider fallback chain.
 - [ ] Admin role enforcement for `/admin/ai-config` and admin APIs.
 - [ ] Supabase Realtime subscription/reconnect strategy for market snapshot updates.
 - [ ] Production observability.
 - [ ] CI workflow for typecheck, build, lint, and smoke tests.
+- [ ] Framework dependency security upgrade path for current Next.js/npm audit advisories.
 - [ ] External metadata enrichment source for better chain/sector coverage beyond the curated resolver.

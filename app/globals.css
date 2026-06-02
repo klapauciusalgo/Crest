@@ -239,6 +239,10 @@ button {
 
 .auth-chip {
   justify-self: end;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .session-dot,
@@ -1184,6 +1188,12 @@ input[type="range"] {
   transform: translateX(6px);
 }
 
+.auth-actions button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+  transform: none;
+}
+
 .auth-actions button svg {
   flex: 0 0 auto;
 }
@@ -1198,6 +1208,35 @@ input[type="range"] {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
+}
+
+.auth-message {
+  border: 1px solid var(--border);
+  background: rgba(20, 21, 25, 0.72);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  padding: 10px 12px;
+}
+
+.auth-message.error {
+  border-color: color-mix(in srgb, var(--negative), #1e2028 55%);
+  background: rgba(255, 74, 92, 0.07);
+  color: #ff9aa5;
+}
+
+.auth-message.working,
+.auth-message.checking {
+  border-color: color-mix(in srgb, var(--blue), #1e2028 55%);
+  background: rgba(76, 158, 255, 0.07);
+  color: #9dc9ff;
+}
+
+.auth-message.signed-in {
+  border-color: color-mix(in srgb, var(--positive), #1e2028 55%);
+  background: rgba(0, 209, 140, 0.07);
+  color: #8beecb;
 }
 
 .entry-footer {
