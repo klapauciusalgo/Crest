@@ -58,7 +58,7 @@ export async function POST(request: Request) {
           model: payload.provider.model,
           apiKey: payload.provider.apiKey,
           status: payload.provider.status || "disabled",
-          maxTokens: payload.provider.maxTokens || 900,
+          maxTokens: payload.provider.maxTokens || 1800,
           temperature: payload.provider.temperature ?? 0.2
         },
         payload.provider.id

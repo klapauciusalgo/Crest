@@ -17,6 +17,8 @@ import {
   Loader2,
   LogOut,
   Mail,
+  Maximize2,
+  Minimize2,
   Pin,
   Save,
   Search,
@@ -1572,7 +1574,8 @@ function AiDrawer({
   const [quota, setQuota] = useState<AiUsageQuota | null>(null);
   const [threadId, setThreadId] = useState<string | undefined>();
   const [serverContext, setServerContext] = useState<AiMarketContext | null>(null);
-  const [providerLabel, setProviderLabel] = useState("");
+  const [responseExpanded, setResponseExpanded] = useState(false);
+  const responseRef = useRef<HTMLPreElement | null>(null);
   const contextJson = JSON.stringify(
     serverContext || {
       note: "Server-side context will be rebuilt from the latest full market snapshot when a prompt is sent.",
@@ -1608,12 +1611,19 @@ function AiDrawer({
     "Summarize 4h regime risk in the latest snapshot."
   ];
 
+  useEffect(() => {
+    if (status === "working") {
+      responseRef.current?.scrollTo({ top: responseRef.current.scrollHeight });
+    }
+  }, [response, status]);
+
   async function submitPrompt(message: string) {
     const cleanMessage = message.trim();
     if (!cleanMessage || status === "working") return;
 
     setStatus("working");
     setErrorMessage("");
+    setResponseExpanded(true);
     onResponse("");
 
     try {
@@ -1655,7 +1665,6 @@ function AiDrawer({
       setQuota(payload.quota || null);
       setServerContext(payload.context);
       setThreadId(payload.threadId || threadId);
-      setProviderLabel(`${payload.provider.providerName} / ${payload.provider.model}`);
       setPrompt("");
       streamText(payload.answer);
     } catch (error) {
@@ -1677,7 +1686,7 @@ function AiDrawer({
   }
 
   return (
-    <section className={`ai-drawer ${open ? "open" : ""}`}>
+    <section className={`ai-drawer ${open ? "open" : ""} ${responseExpanded ? "expanded" : ""}`}>
       <button className="ai-collapsed" onClick={onToggle}>
         <Bot size={15} />
         Ask about current data
@@ -1691,11 +1700,19 @@ function AiDrawer({
             <span>{quota ? `${quota.remaining}/${quota.limit} prompts left` : "Credit sync pending"}</span>
           </div>
           <div className="ai-context-packet">
-            <span>{providerLabel || "No provider response yet"}</span>
             <span>{pinned.map((symbol) => `$${symbol}`).join(" ") || "No pins"}</span>
             <span>
               {context.signalSummary.longBuy + context.signalSummary.shortSell} filtered setups / {rows.length} visible
             </span>
+            <button
+              aria-label={responseExpanded ? "Compact AI answer" : "Expand AI answer"}
+              className="ai-expand-toggle"
+              disabled={!response && status !== "working"}
+              onClick={() => setResponseExpanded((current) => !current)}
+              type="button"
+            >
+              {responseExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+            </button>
           </div>
           <div className="ai-presets">
             {presets.map((item) => (
@@ -1705,7 +1722,7 @@ function AiDrawer({
             ))}
           </div>
           <div className="ai-output-grid">
-            <pre className="ai-response">
+            <pre className="ai-response" ref={responseRef}>
               {status === "working" && !response ? "Reading latest Crest snapshot and provider config..." : response || "Ask about the latest full market snapshot. The server will rebuild context from stored 30m or 4h data before answering."}
               {(response || status === "working") && <span className="cursor">_</span>}
               {status === "error" && <span className="ai-error-line">{"\n"}{errorMessage}</span>}
@@ -2141,7 +2158,7 @@ function createEmptyProviderForm(): AiProviderForm {
     model: "",
     apiKey: "",
     status: "active",
-    maxTokens: 900,
+    maxTokens: 1800,
     temperature: 0.2
   };
 }
