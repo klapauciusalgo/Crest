@@ -1131,9 +1131,9 @@ function Header({
           </button>
         ))}
       </div>
-      <button className="auth-chip" onClick={onSignOut}>
+      <button className="auth-chip" onClick={onSignOut} aria-label="Sign out">
         <span className={`session-dot ${authMode}`} />
-        {sessionLabel}
+        <span className="auth-label">{sessionLabel}</span>
         <LogOut size={13} />
       </button>
     </header>
@@ -1470,32 +1470,36 @@ function AssetGrid({
               const isHighlighted = highlightedTickers.includes(asset.symbol);
               return (
                 <tr className={`${isPinned ? "pinned" : ""} ${isHighlighted ? "highlight" : ""}`} key={asset.symbol}>
-                  <td>
-                    <button className={`pin-button ${isPinned ? "active" : ""}`} onClick={() => onPin(asset.symbol)}>
+                  <td className="pin-cell" data-label="Pin">
+                    <button
+                      aria-label={`${isPinned ? "Unpin" : "Pin"} ${asset.symbol}`}
+                      className={`pin-button ${isPinned ? "active" : ""}`}
+                      onClick={() => onPin(asset.symbol)}
+                    >
                       <Pin size={13} />
                     </button>
                   </td>
-                  <td className="asset-cell">
+                  <td className="asset-cell" data-label="Asset">
                     <Link className="asset-link" href={`/assets/${asset.symbol}?timeframe=${timeframe}`}>
                       <strong>${asset.symbol}</strong>
                       <span>{asset.name}</span>
                     </Link>
                   </td>
-                  <td>{formatPrice(asset.price)}</td>
-                  <td className={asset.priceChange24h >= 0 ? "positive" : "negative"}>{formatPct(asset.priceChange24h)}</td>
-                  <td>
+                  <td data-label="Price">{formatPrice(asset.price)}</td>
+                  <td data-label="24h" className={asset.priceChange24h >= 0 ? "positive" : "negative"}>{formatPct(asset.priceChange24h)}</td>
+                  <td data-label="RSI">
                     <RsiGauge value={asset.rsi14} />
                   </td>
-                  <td className={asset.volumeChange24h >= 0 ? "positive" : "negative"}>{formatPct(asset.volumeChange24h)}</td>
-                  <td>{formatCompactDollar(asset.quoteVolume24h || 0)}</td>
-                  <td>
+                  <td data-label="Vol chg." className={asset.volumeChange24h >= 0 ? "positive" : "negative"}>{formatPct(asset.volumeChange24h)}</td>
+                  <td data-label="24h Vol">{formatCompactDollar(asset.quoteVolume24h || 0)}</td>
+                  <td data-label="Chain">
                     <span className="chain-badge" style={{ "--chain-color": getChainColor(asset.chain) } as CSSProperties}>
                       {formatChainLabel(asset.chain)}
                     </span>
                   </td>
-                  <td>{formatPrice(asset.ma111)}</td>
-                  <td className={asset.maDistancePct >= 0 ? "positive" : "negative"}>{formatPct(asset.maDistancePct)}</td>
-                  <td title={asset.signalReason}>
+                  <td data-label="MA111">{formatPrice(asset.ma111)}</td>
+                  <td data-label="MA dist." className={asset.maDistancePct >= 0 ? "positive" : "negative"}>{formatPct(asset.maDistancePct)}</td>
+                  <td data-label={timeframe === "4h" ? "Regime" : "Setup"} title={asset.signalReason}>
                     <span className="signal-cell">
                       {timeframe === "4h" ? (
                         <span className={`regime-pill ${asset.regime4h.toLowerCase()}`}>{asset.regime4h}</span>
