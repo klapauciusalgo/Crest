@@ -1,6 +1,7 @@
 import { getAiProviderById, updateAiProviderTestResult } from "@/lib/ai/config";
 import { testOpenAiCompatibleProvider } from "@/lib/ai/provider";
 import { requireAdminServerUser } from "@/lib/auth/server";
+import { getErrorMessage } from "@/lib/error-message";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +24,8 @@ export async function POST(_request: Request, { params }: { params: { id: string
       testedAt: new Date().toISOString()
     });
   } catch (error) {
-    await updateAiProviderTestResult(params.id, "failed", getErrorMessage(error)).catch(() => null);
-    return Response.json({ error: getErrorMessage(error), ok: false }, { status: 502 });
+    const message = getErrorMessage(error, "Unknown provider test error.");
+    await updateAiProviderTestResult(params.id, "failed", message).catch(() => null);
+    return Response.json({ error: message, ok: false }, { status: 502 });
   }
-}
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unknown provider test error.";
 }

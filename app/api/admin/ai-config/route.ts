@@ -1,4 +1,5 @@
 import { getAiAdminConfig, maskProviderConfig, updateAiSettings, upsertAiProvider } from "@/lib/ai/config";
+import { getErrorMessage } from "@/lib/error-message";
 import { requireAdminServerUser } from "@/lib/auth/server";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export async function GET() {
       settings: config.settings
     });
   } catch (error) {
-    return Response.json({ error: getErrorMessage(error) }, { status: 500 });
+    return Response.json({ error: getErrorMessage(error, "Unknown AI config error.") }, { status: 500 });
   }
 }
 
@@ -74,10 +75,6 @@ export async function POST(request: Request) {
 
     return Response.json(response);
   } catch (error) {
-    return Response.json({ error: getErrorMessage(error) }, { status: 500 });
+    return Response.json({ error: getErrorMessage(error, "Unknown AI config error.") }, { status: 500 });
   }
-}
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unknown AI config error.";
 }

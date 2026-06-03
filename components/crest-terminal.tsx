@@ -1757,9 +1757,16 @@ function AdminPanel() {
     let isMounted = true;
 
     fetch("/api/admin/ai-config", { cache: "no-store" })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Admin config returned ${response.status}`);
-        return response.json() as Promise<{ providers: AiProviderConfig[]; settings: AiSettings }>;
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          providers?: AiProviderConfig[];
+          settings?: AiSettings;
+        };
+        if (!response.ok || !payload.providers || !payload.settings) {
+          throw new Error(payload.error || `Admin config returned ${response.status}`);
+        }
+        return payload as { providers: AiProviderConfig[]; settings: AiSettings };
       })
       .then((payload) => {
         if (!isMounted) return;
@@ -1958,7 +1965,7 @@ function AdminPanel() {
         <section className="provider-editor" aria-label="AI provider editor" ref={providerEditorRef}>
           <div className="admin-section-head">
             <div>
-              <p className="micro-label">OpenAI-compatible route</p>
+              <p className="micro-label">Provider route</p>
               <strong>{form.id ? "Edit provider" : "New provider"}</strong>
             </div>
             <span className={`admin-state ${status}`}>

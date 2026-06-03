@@ -5,6 +5,7 @@ import { requestOpenAiCompatibleChat } from "@/lib/ai/provider";
 import type { AiChatRequest } from "@/lib/ai/types";
 import { getWeeklyQuota, recordAiUsage } from "@/lib/ai/usage";
 import { getAuthenticatedServerUser, getRequiredServiceClient } from "@/lib/auth/server";
+import { getErrorMessage } from "@/lib/error-message";
 import { parseTimeframe } from "@/lib/market/service";
 
 export const dynamic = "force-dynamic";
@@ -81,10 +82,6 @@ export async function POST(request: Request) {
       threadId
     });
   } catch (error) {
-    return Response.json({ error: getErrorMessage(error) }, { status: 500 });
+    return Response.json({ error: getErrorMessage(error, "Unknown AI chat error.") }, { status: 500 });
   }
-}
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unknown AI chat error.";
 }
