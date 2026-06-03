@@ -1820,6 +1820,31 @@ function AdminPanel() {
     }
   }
 
+  function updateProviderField<K extends keyof AiProviderForm>(key: K, value: AiProviderForm[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateProviderTextField(key: "providerName" | "baseUrl" | "model" | "apiKey", value: string) {
+    updateProviderField(key, value);
+  }
+
+  function updateProviderNumberField(key: "maxTokens" | "temperature", value: string) {
+    const parsed = Number(value.replace(",", "."));
+    setForm((current) => ({ ...current, [key]: Number.isFinite(parsed) ? parsed : current[key] }));
+  }
+
+  function updateWeeklyPromptLimit(value: string) {
+    const parsed = Number(value);
+    setSettings((current) => ({
+      ...current,
+      weeklyPromptLimit: Number.isFinite(parsed) ? parsed : current.weeklyPromptLimit
+    }));
+  }
+
+  function updateSystemPrompt(value: string) {
+    setSettings((current) => ({ ...current, systemPrompt: value }));
+  }
+
   async function saveSettings() {
     setStatus("saving");
     setMessage("");
@@ -1954,8 +1979,8 @@ function AdminPanel() {
               <input
                 disabled={isBusy}
                 name="providerName"
-                onChange={(event) => setForm((current) => ({ ...current, providerName: event.target.value }))}
-                onInput={(event) => setForm((current) => ({ ...current, providerName: event.currentTarget.value }))}
+                onChange={(event) => updateProviderTextField("providerName", event.currentTarget.value)}
+                onInput={(event) => updateProviderTextField("providerName", event.currentTarget.value)}
                 placeholder="Ollama Cloud"
                 value={form.providerName}
               />
@@ -1964,7 +1989,7 @@ function AdminPanel() {
               Status
               <select
                 disabled={isBusy}
-                onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as AiProviderForm["status"] }))}
+                onChange={(event) => updateProviderField("status", event.currentTarget.value as AiProviderForm["status"])}
                 value={form.status}
               >
                 <option value="active">Active</option>
@@ -1976,8 +2001,8 @@ function AdminPanel() {
               <input
                 disabled={isBusy}
                 name="baseUrl"
-                onChange={(event) => setForm((current) => ({ ...current, baseUrl: event.target.value }))}
-                onInput={(event) => setForm((current) => ({ ...current, baseUrl: event.currentTarget.value }))}
+                onChange={(event) => updateProviderTextField("baseUrl", event.currentTarget.value)}
+                onInput={(event) => updateProviderTextField("baseUrl", event.currentTarget.value)}
                 placeholder="https://api.openai.com/v1"
                 value={form.baseUrl}
               />
@@ -1987,8 +2012,8 @@ function AdminPanel() {
               <input
                 disabled={isBusy}
                 name="model"
-                onChange={(event) => setForm((current) => ({ ...current, model: event.target.value }))}
-                onInput={(event) => setForm((current) => ({ ...current, model: event.currentTarget.value }))}
+                onChange={(event) => updateProviderTextField("model", event.currentTarget.value)}
+                onInput={(event) => updateProviderTextField("model", event.currentTarget.value)}
                 placeholder="gpt-4.1-mini"
                 value={form.model}
               />
@@ -1998,8 +2023,8 @@ function AdminPanel() {
               <input
                 disabled={isBusy}
                 name="apiKey"
-                onChange={(event) => setForm((current) => ({ ...current, apiKey: event.target.value }))}
-                onInput={(event) => setForm((current) => ({ ...current, apiKey: event.currentTarget.value }))}
+                onChange={(event) => updateProviderTextField("apiKey", event.currentTarget.value)}
+                onInput={(event) => updateProviderTextField("apiKey", event.currentTarget.value)}
                 placeholder={form.id ? "Leave blank to keep encrypted key" : "Required"}
                 type="password"
                 value={form.apiKey}
@@ -2012,7 +2037,7 @@ function AdminPanel() {
                 min={64}
                 max={8192}
                 name="maxTokens"
-                onChange={(event) => setForm((current) => ({ ...current, maxTokens: Number(event.target.value) }))}
+                onChange={(event) => updateProviderNumberField("maxTokens", event.currentTarget.value)}
                 type="number"
                 value={form.maxTokens}
               />
@@ -2024,7 +2049,7 @@ function AdminPanel() {
                 max={2}
                 min={0}
                 name="temperature"
-                onChange={(event) => setForm((current) => ({ ...current, temperature: Number(event.target.value) }))}
+                onChange={(event) => updateProviderNumberField("temperature", event.currentTarget.value)}
                 step="0.05"
                 type="number"
                 value={form.temperature}
@@ -2059,7 +2084,7 @@ function AdminPanel() {
                 disabled={isBusy}
                 max={1000}
                 min={0}
-                onChange={(event) => setSettings((current) => ({ ...current, weeklyPromptLimit: Number(event.target.value) }))}
+                onChange={(event) => updateWeeklyPromptLimit(event.currentTarget.value)}
                 type="number"
                 value={settings.weeklyPromptLimit}
               />
@@ -2068,7 +2093,7 @@ function AdminPanel() {
               System note
               <textarea
                 disabled={isBusy}
-                onChange={(event) => setSettings((current) => ({ ...current, systemPrompt: event.target.value }))}
+                onChange={(event) => updateSystemPrompt(event.currentTarget.value)}
                 placeholder="Optional admin instruction appended to Crest AI behavior."
                 value={settings.systemPrompt}
               />
