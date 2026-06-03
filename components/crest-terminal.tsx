@@ -3,35 +3,40 @@
 import Link from "next/link";
 import {
   Activity,
+  AlertTriangle,
   BarChart3,
   Bot,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  CheckCircle2,
   Command,
   Database,
+  KeyRound,
+  Loader2,
   LogOut,
   Mail,
   Pin,
+  Save,
   Search,
+  Send,
   Settings,
   SlidersHorizontal,
-  Sparkles,
+  TestTube2,
   Wallet
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
 import type { CrestAuthProfile } from "@/lib/auth/profile";
 import { formatCompactDollar, formatPct, formatPrice } from "@/lib/formatters";
+import type { AiChatResponse, AiMarketContext, AiProviderConfig, AiSettings, AiUsageQuota } from "@/lib/ai/types";
 import {
   AssetSignalRow,
   ChainKey,
   ChainProjectDetail,
-  ProviderConfig,
   SectorKey,
   Timeframe,
-  aiPresetResponses,
   chainColors,
   enrichAssetsWithSignals,
   getChainProjectDetails,
@@ -39,7 +44,6 @@ import {
   getMockAssets,
   getSectorProjectDetails,
   getSectorSummaries,
-  providerConfigs,
   sectorColors
 } from "@/lib/mock-data";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -135,6 +139,18 @@ type MarketApiResponse = {
   freshness?: MarketFreshness;
 };
 type MarketLoadStatus = "loading" | "live" | "fallback";
+type AiRunStatus = "idle" | "working" | "error";
+type AiAdminStatus = "loading" | "ready" | "saving" | "testing" | "error";
+type AiProviderForm = {
+  id?: string;
+  providerName: string;
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+  status: "active" | "disabled";
+  maxTokens: number;
+  temperature: number;
+};
 type AiContextSnapshot = {
   timeframe: Timeframe;
   dataStatus: {
@@ -735,20 +751,6 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
     setActivePreset(nextName);
   }
 
-  function runAiPreset(kind: keyof typeof aiPresetResponses) {
-    setAiOpen(true);
-    setAiResponse("");
-    const response = aiPresetResponses[kind];
-    let index = 0;
-    const timer = window.setInterval(() => {
-      index += 4;
-      setAiResponse(response.slice(0, index));
-      if (index >= response.length) {
-        window.clearInterval(timer);
-      }
-    }, 18);
-  }
-
   if (isSignedOut && authStatus === "checking") {
     return <AuthRestoring />;
   }
@@ -945,7 +947,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
         rows={paginatedAssets}
         context={aiContext}
         onToggle={() => setAiOpen((current) => !current)}
-        onPreset={runAiPreset}
+        onResponse={setAiResponse}
       />
     </main>
   );
@@ -1554,7 +1556,7 @@ function AiDrawer({
   rows,
   context,
   onToggle,
-  onPreset
+  onResponse
 }: {
   open: boolean;
   response: string;
@@ -1562,35 +1564,117 @@ function AiDrawer({
   rows: AssetSignalRow[];
   context: AiContextSnapshot;
   onToggle: () => void;
-  onPreset: (kind: keyof typeof aiPresetResponses) => void;
+  onResponse: (value: string) => void;
 }) {
+  const [prompt, setPrompt] = useState("");
+  const [status, setStatus] = useState<AiRunStatus>("idle");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [quota, setQuota] = useState<AiUsageQuota | null>(null);
+  const [threadId, setThreadId] = useState<string | undefined>();
+  const [serverContext, setServerContext] = useState<AiMarketContext | null>(null);
+  const [providerLabel, setProviderLabel] = useState("");
   const contextJson = JSON.stringify(
-    {
-      timeframe: context.timeframe,
-      active_preset: context.activePreset,
-      filter_state: {
-        chains: context.filterState.chains,
-        search_query: context.filterState.searchQuery,
-        rsi_range: context.filterState.rsiRange,
-        ma_distance_range: context.filterState.maDistanceRange
-      },
-      sort: context.sort,
-      pagination: context.pagination,
-      data_status: context.dataStatus,
-      rank_basis: context.dataStatus.rankBasis,
-      multi_timeframe_rules: multiTimeframeRules,
-      market_breadth: context.marketBreadth,
-      signal_summary: context.signalSummary,
-      visible_assets: context.visibleAssets,
-      chain_summary: context.chainSummary,
-      sector_summary: context.sectorSummary,
-      inspected_chain: context.inspectedChain,
-      inspected_sector: context.inspectedSector,
-      pinned_assets: context.pinnedAssets
+    serverContext || {
+      note: "Server-side context will be rebuilt from the latest full market snapshot when a prompt is sent.",
+      request_focus: {
+        timeframe: context.timeframe,
+        active_preset: context.activePreset,
+        filter_state: {
+          chains: context.filterState.chains,
+          search_query: context.filterState.searchQuery,
+          rsi_range: context.filterState.rsiRange,
+          ma_distance_range: context.filterState.maDistanceRange
+        },
+        sort: context.sort,
+        data_status: context.dataStatus,
+        rank_basis: context.dataStatus.rankBasis,
+        multi_timeframe_rules: multiTimeframeRules,
+        visible_rows_focus: context.visibleAssets.length,
+        pinned_assets: context.pinnedAssets
+      }
     },
     null,
     2
   );
+  const contextScopeLabel = serverContext
+    ? `${serverContext.assets.length} latest ${context.timeframe} context rows`
+    : `Latest full ${context.timeframe} snapshot on submit`;
+  const contextUpdatedAt = serverContext?.dataStatus.lastUpdated || context.dataStatus.lastUpdated;
+  const presets = [
+    "Which assets have actionable 30m setups?",
+    "Rank chain strength by latest breadth.",
+    "Find volume anomalies with weak price follow-through.",
+    "Which assets are closest to MA111 breakdown?",
+    "Summarize 4h regime risk in the latest snapshot."
+  ];
+
+  async function submitPrompt(message: string) {
+    const cleanMessage = message.trim();
+    if (!cleanMessage || status === "working") return;
+
+    setStatus("working");
+    setErrorMessage("");
+    onResponse("");
+
+    try {
+      const apiResponse = await fetch("/api/ai/chat", {
+        body: JSON.stringify({
+          message: cleanMessage,
+          timeframe: context.timeframe,
+          activePreset: context.activePreset,
+          filters: {
+            chains: context.filterState.chains,
+            searchQuery: context.filterState.searchQuery,
+            rsiRange: context.filterState.rsiRange,
+            maDistanceRange: context.filterState.maDistanceRange
+          },
+          sort: context.sort,
+          pinnedAssets: pinned.map((symbol) => `$${symbol}`),
+          threadId
+        }),
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+      const payload = (await apiResponse.json().catch(() => ({}))) as Partial<AiChatResponse> & {
+        error?: string;
+        quota?: AiUsageQuota;
+      };
+
+      if (!apiResponse.ok) {
+        if (payload.quota) setQuota(payload.quota);
+        throw new Error(payload.error || `AI route returned ${apiResponse.status}`);
+      }
+
+      if (!payload.answer || !payload.context || !payload.provider) {
+        throw new Error("AI response was incomplete.");
+      }
+
+      setQuota(payload.quota || null);
+      setServerContext(payload.context);
+      setThreadId(payload.threadId || threadId);
+      setProviderLabel(`${payload.provider.providerName} / ${payload.provider.model}`);
+      setPrompt("");
+      streamText(payload.answer);
+    } catch (error) {
+      setStatus("error");
+      setErrorMessage(getClientErrorMessage(error));
+    }
+  }
+
+  function streamText(value: string) {
+    let index = 0;
+    const timer = window.setInterval(() => {
+      index += 8;
+      onResponse(value.slice(0, index));
+      if (index >= value.length) {
+        window.clearInterval(timer);
+        setStatus("idle");
+      }
+    }, 14);
+  }
 
   return (
     <section className={`ai-drawer ${open ? "open" : ""}`}>
@@ -1602,37 +1686,54 @@ function AiDrawer({
       {open && (
         <div className="ai-panel">
           <div className="ai-context">
-            <span>{rows.length} visible rows</span>
-            <span>{pinned.map((symbol) => `$${symbol}`).join(" ") || "No pins"}</span>
+            <span>{contextScopeLabel}</span>
+            <span>{contextUpdatedAt ? `Data ${formatLastUpdate(contextUpdatedAt)}` : "Data pending"}</span>
+            <span>{quota ? `${quota.remaining}/${quota.limit} prompts left` : "Credit sync pending"}</span>
           </div>
           <div className="ai-context-packet">
-            <span>Context packet</span>
-            <span>{context.signalSummary.bullish} bullish / {context.signalSummary.bearish} bearish / {context.signalSummary.neutral} neutral</span>
+            <span>{providerLabel || "No provider response yet"}</span>
+            <span>{pinned.map((symbol) => `$${symbol}`).join(" ") || "No pins"}</span>
             <span>
-              {context.signalSummary.longBuy + context.signalSummary.shortSell} setups / {context.visibleAssets.length} rows
+              {context.signalSummary.longBuy + context.signalSummary.shortSell} filtered setups / {rows.length} visible
             </span>
           </div>
           <div className="ai-presets">
-            <button onClick={() => onPreset("oversold")}>Oversold opportunities</button>
-            <button onClick={() => onPreset("chains")}>Chain strength ranking</button>
-            <button onClick={() => onPreset("volume")}>Volume anomalies</button>
-            <button onClick={() => onPreset("ma")}>MA111 breakdown watch</button>
-            <button onClick={() => onPreset("setup")}>4h regime / 30m trigger</button>
+            {presets.map((item) => (
+              <button disabled={status === "working"} key={item} onClick={() => submitPrompt(item)}>
+                {item}
+              </button>
+            ))}
           </div>
           <div className="ai-output-grid">
             <pre className="ai-response">
-              {response || "Select a preset prompt to stream a mock analyst response."}
-              {response && <span className="cursor">_</span>}
+              {status === "working" && !response ? "Reading latest Crest snapshot and provider config..." : response || "Ask about the latest full market snapshot. The server will rebuild context from stored 30m or 4h data before answering."}
+              {(response || status === "working") && <span className="cursor">_</span>}
+              {status === "error" && <span className="ai-error-line">{"\n"}{errorMessage}</span>}
             </pre>
             <details className="ai-context-preview">
               <summary>Injected data</summary>
               <pre>{contextJson}</pre>
             </details>
           </div>
-          <div className="ai-input">
+          <form
+            className="ai-input"
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitPrompt(prompt);
+            }}
+          >
             <span>&gt;</span>
-            <input placeholder="e.g. which BSC tokens are oversold?" />
-          </div>
+            <input
+              disabled={status === "working"}
+              onChange={(event) => setPrompt(event.target.value)}
+              placeholder="e.g. which assets are actionable in the latest 30m data?"
+              value={prompt}
+            />
+            <button disabled={status === "working" || !prompt.trim()} type="submit">
+              {status === "working" ? <Loader2 size={14} /> : <Send size={14} />}
+              Ask
+            </button>
+          </form>
         </div>
       )}
     </section>
@@ -1640,99 +1741,325 @@ function AiDrawer({
 }
 
 function AdminPanel() {
-  const [configs, setConfigs] = useState(providerConfigs);
+  const [status, setStatus] = useState<AiAdminStatus>("loading");
+  const [message, setMessage] = useState("");
+  const [providers, setProviders] = useState<AiProviderConfig[]>([]);
+  const [settings, setSettings] = useState<AiSettings>({
+    weeklyPromptLimit: 5,
+    resetTimezone: "Asia/Jakarta",
+    systemPrompt: "",
+    updatedAt: null
+  });
+  const [form, setForm] = useState<AiProviderForm>(createEmptyProviderForm());
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetch("/api/admin/ai-config", { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Admin config returned ${response.status}`);
+        return response.json() as Promise<{ providers: AiProviderConfig[]; settings: AiSettings }>;
+      })
+      .then((payload) => {
+        if (!isMounted) return;
+        setProviders(payload.providers);
+        setSettings(payload.settings);
+        setForm(providerToForm(payload.providers.find((provider) => provider.status === "active") || payload.providers[0]));
+        setStatus("ready");
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        setStatus("error");
+        setMessage(getClientErrorMessage(error));
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  async function saveProvider() {
+    setStatus("saving");
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/admin/ai-config", {
+        body: JSON.stringify({ provider: form }),
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+      const payload = (await response.json().catch(() => ({}))) as { provider?: AiProviderConfig; error?: string };
+
+      if (!response.ok || !payload.provider) {
+        throw new Error(payload.error || `Save returned ${response.status}`);
+      }
+
+      setProviders((current) => upsertProviderList(current, payload.provider as AiProviderConfig));
+      setForm(providerToForm(payload.provider));
+      setStatus("ready");
+      setMessage("Provider saved. API key is encrypted server-side.");
+    } catch (error) {
+      setStatus("error");
+      setMessage(getClientErrorMessage(error));
+    }
+  }
+
+  async function saveSettings() {
+    setStatus("saving");
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/admin/ai-config", {
+        body: JSON.stringify({ settings }),
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+      const payload = (await response.json().catch(() => ({}))) as { settings?: AiSettings; error?: string };
+
+      if (!response.ok || !payload.settings) {
+        throw new Error(payload.error || `Settings save returned ${response.status}`);
+      }
+
+      setSettings(payload.settings);
+      setStatus("ready");
+      setMessage("Weekly credit policy saved.");
+    } catch (error) {
+      setStatus("error");
+      setMessage(getClientErrorMessage(error));
+    }
+  }
+
+  async function testProvider() {
+    if (!form.id) {
+      setStatus("error");
+      setMessage("Save the provider before running a connection test.");
+      return;
+    }
+
+    setStatus("testing");
+    setMessage("Testing provider connection.");
+
+    try {
+      const response = await fetch(`/api/admin/ai-config/providers/${form.id}/test`, {
+        cache: "no-store",
+        method: "POST"
+      });
+      const payload = (await response.json().catch(() => ({}))) as { ok?: boolean; latencyMs?: number; error?: string };
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || `Test returned ${response.status}`);
+      }
+
+      setStatus("ready");
+      setMessage(`Connection OK in ${payload.latencyMs}ms.`);
+    } catch (error) {
+      setStatus("error");
+      setMessage(getClientErrorMessage(error));
+    }
+  }
+
+  const activeProvider = providers.find((provider) => provider.status === "active");
+  const enabledCount = providers.filter((provider) => provider.status === "active").length;
+  const isBusy = status === "saving" || status === "testing" || status === "loading";
 
   return (
     <section className="admin-panel">
       <div className="workspace-toolbar">
         <div>
           <p className="micro-label">Admin</p>
-          <h2>AI provider configuration</h2>
+          <h2>AI context control plane</h2>
         </div>
         <div className="toolbar-stats">
-          <Metric label="Primary" value={configs.find((config) => config.status === "primary")?.provider || "None"} />
-          <Metric label="Enabled" value={String(configs.filter((config) => config.status !== "disabled").length)} />
+          <Metric label="Active" value={activeProvider?.providerName || "None"} />
+          <Metric label="Providers" value={String(providers.length)} />
+          <Metric label="Weekly credit" value={`${settings.weeklyPromptLimit}/user`} />
+          <Metric label="Timezone" value="WIB" />
         </div>
       </div>
 
-      <div className="provider-grid">
-        {configs.map((config, index) => (
-          <article className="provider-row" key={config.provider}>
+      <div className="ai-admin-grid">
+        <aside className="provider-roster" aria-label="Configured AI providers">
+          <div className="admin-section-head">
             <div>
-              <span className={`provider-status ${config.status}`} />
-              <strong>{config.provider}</strong>
-              <span>{config.model}</span>
+              <p className="micro-label">Providers</p>
+              <strong>{enabledCount} active route</strong>
             </div>
+            <button onClick={() => setForm(createEmptyProviderForm())} type="button">
+              New
+            </button>
+          </div>
+          <div className="provider-roster-list">
+            {providers.length === 0 && (
+              <div className="provider-empty">
+                <KeyRound size={15} />
+                No provider stored yet.
+              </div>
+            )}
+            {providers.map((provider) => (
+              <button
+                className={form.id === provider.id ? "active" : ""}
+                key={provider.id}
+                onClick={() => setForm(providerToForm(provider))}
+                type="button"
+              >
+                <span className={`provider-status ${provider.status}`} />
+                <strong>{provider.providerName}</strong>
+                <small>{provider.model}</small>
+                <em>{provider.lastTestStatus || "untested"}</em>
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <section className="provider-editor" aria-label="AI provider editor">
+          <div className="admin-section-head">
+            <div>
+              <p className="micro-label">OpenAI-compatible route</p>
+              <strong>{form.id ? "Edit provider" : "New provider"}</strong>
+            </div>
+            <span className={`admin-state ${status}`}>
+              {status === "testing" || status === "saving" || status === "loading" ? <Loader2 size={13} /> : status === "error" ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}
+              {status}
+            </span>
+          </div>
+
+          <div className="provider-form-grid">
+            <label>
+              Provider
+              <input
+                disabled={isBusy}
+                onChange={(event) => setForm((current) => ({ ...current, providerName: event.target.value }))}
+                placeholder="Ollama Cloud"
+                value={form.providerName}
+              />
+            </label>
+            <label>
+              Status
+              <select
+                disabled={isBusy}
+                onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as AiProviderForm["status"] }))}
+                value={form.status}
+              >
+                <option value="active">Active</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </label>
+            <label className="wide">
+              Base URL
+              <input
+                disabled={isBusy}
+                onChange={(event) => setForm((current) => ({ ...current, baseUrl: event.target.value }))}
+                placeholder="https://api.openai.com/v1"
+                value={form.baseUrl}
+              />
+            </label>
+            <label>
+              Model
+              <input
+                disabled={isBusy}
+                onChange={(event) => setForm((current) => ({ ...current, model: event.target.value }))}
+                placeholder="gpt-4.1-mini"
+                value={form.model}
+              />
+            </label>
+            <label>
+              API key
+              <input
+                disabled={isBusy}
+                onChange={(event) => setForm((current) => ({ ...current, apiKey: event.target.value }))}
+                placeholder={form.id ? "Leave blank to keep encrypted key" : "Required"}
+                type="password"
+                value={form.apiKey}
+              />
+            </label>
             <label>
               Max tokens
               <input
-                value={config.maxTokens}
+                disabled={isBusy}
+                min={64}
+                max={8192}
+                onChange={(event) => setForm((current) => ({ ...current, maxTokens: Number(event.target.value) }))}
                 type="number"
-                onChange={(event) =>
-                  setConfigs((current) =>
-                    current.map((item, itemIndex) =>
-                      itemIndex === index ? { ...item, maxTokens: Number(event.target.value) } : item
-                    )
-                  )
-                }
+                value={form.maxTokens}
               />
             </label>
             <label>
-              Temp
+              Temperature
               <input
-                value={config.temperature}
+                disabled={isBusy}
+                max={2}
+                min={0}
+                onChange={(event) => setForm((current) => ({ ...current, temperature: Number(event.target.value) }))}
                 step="0.05"
                 type="number"
-                onChange={(event) =>
-                  setConfigs((current) =>
-                    current.map((item, itemIndex) =>
-                      itemIndex === index ? { ...item, temperature: Number(event.target.value) } : item
-                    )
-                  )
-                }
+                value={form.temperature}
               />
             </label>
+          </div>
+
+          <div className="admin-action-row">
+            <button disabled={isBusy} onClick={saveProvider} type="button">
+              {status === "saving" ? <Loader2 size={14} /> : <Save size={14} />}
+              Save provider
+            </button>
+            <button disabled={isBusy || !form.id} onClick={testProvider} type="button">
+              {status === "testing" ? <Loader2 size={14} /> : <TestTube2 size={14} />}
+              Test connection
+            </button>
+          </div>
+        </section>
+
+        <section className="credit-editor" aria-label="AI credit policy">
+          <div className="admin-section-head">
+            <div>
+              <p className="micro-label">Usage policy</p>
+              <strong>Weekly prompt credits</strong>
+            </div>
+            <span>Reset Monday 00:00 WIB</span>
+          </div>
+          <div className="provider-form-grid compact">
             <label>
-              Daily limit
+              Prompts per user
               <input
-                value={config.dailyLimit}
+                disabled={isBusy}
+                max={1000}
+                min={0}
+                onChange={(event) => setSettings((current) => ({ ...current, weeklyPromptLimit: Number(event.target.value) }))}
                 type="number"
-                onChange={(event) =>
-                  setConfigs((current) =>
-                    current.map((item, itemIndex) =>
-                      itemIndex === index ? { ...item, dailyLimit: Number(event.target.value) } : item
-                    )
-                  )
-                }
+                value={settings.weeklyPromptLimit}
               />
             </label>
-            <select
-              value={config.status}
-              onChange={(event) =>
-                setConfigs((current) =>
-                  current.map((item, itemIndex) =>
-                    itemIndex === index ? { ...item, status: event.target.value as ProviderConfig["status"] } : item
-                  )
-                )
-              }
-            >
-              <option value="primary">Primary</option>
-              <option value="fallback">Fallback</option>
-              <option value="disabled">Disabled</option>
-            </select>
-          </article>
-        ))}
+            <label className="wide">
+              System note
+              <textarea
+                disabled={isBusy}
+                onChange={(event) => setSettings((current) => ({ ...current, systemPrompt: event.target.value }))}
+                placeholder="Optional admin instruction appended to Crest AI behavior."
+                value={settings.systemPrompt}
+              />
+            </label>
+          </div>
+          <div className="admin-action-row">
+            <button disabled={isBusy} onClick={saveSettings} type="button">
+              {status === "saving" ? <Loader2 size={14} /> : <Save size={14} />}
+              Save credit policy
+            </button>
+          </div>
+        </section>
       </div>
 
       <div className="admin-footer">
         <div>
           <Database size={15} />
-          Mock save state, Supabase persistence pending.
+          API keys are encrypted before storage. User prompts read the latest full snapshot for the active timeframe.
         </div>
-        <button>
-          <Sparkles size={15} />
-          Save mock config
-        </button>
+        {message && <span className={`admin-message ${status}`}>{message}</span>}
       </div>
     </section>
   );
@@ -1745,6 +2072,44 @@ function Metric({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+function createEmptyProviderForm(): AiProviderForm {
+  return {
+    providerName: "Ollama Cloud",
+    baseUrl: "",
+    model: "",
+    apiKey: "",
+    status: "active",
+    maxTokens: 900,
+    temperature: 0.2
+  };
+}
+
+function providerToForm(provider?: AiProviderConfig): AiProviderForm {
+  if (!provider) return createEmptyProviderForm();
+
+  return {
+    id: provider.id,
+    providerName: provider.providerName,
+    baseUrl: provider.baseUrl,
+    model: provider.model,
+    apiKey: "",
+    status: provider.status,
+    maxTokens: provider.maxTokens,
+    temperature: provider.temperature
+  };
+}
+
+function upsertProviderList(providers: AiProviderConfig[], provider: AiProviderConfig) {
+  const nextProviders = provider.status === "active"
+    ? providers.map((item) => ({ ...item, status: "disabled" as const }))
+    : providers;
+  const index = nextProviders.findIndex((item) => item.id === provider.id);
+
+  if (index === -1) return [provider, ...nextProviders];
+
+  return nextProviders.map((item) => (item.id === provider.id ? provider : item));
 }
 
 function normalizeApiAsset(asset: AssetSignalRow): AssetSignalRow {
@@ -1906,7 +2271,7 @@ function getAuthErrorFromLocation() {
   }
 
   if (value === "google_email_not_allowed") {
-    return "Only @gmail.com Google accounts can access Crest right now.";
+    return "Google account access is not allowed for this Crest workspace yet.";
   }
 
   if (value === "exchange_failed") {

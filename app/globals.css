@@ -261,6 +261,10 @@ button {
   background: var(--positive);
 }
 
+.provider-status.active {
+  background: var(--positive);
+}
+
 .provider-status.fallback {
   background: var(--blue);
 }
@@ -1699,7 +1703,7 @@ input[type="range"] {
 .ai-panel {
   display: grid;
   grid-template-rows: auto auto auto minmax(110px, 1fr) auto;
-  height: 340px;
+  height: 360px;
   border-top: 1px solid var(--border);
   background: #0e0f12;
 }
@@ -1753,6 +1757,12 @@ input[type="range"] {
   color: var(--text);
 }
 
+.ai-presets button:disabled,
+.ai-input button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .ai-response {
   margin: 0;
   overflow: auto;
@@ -1763,6 +1773,10 @@ input[type="range"] {
   font-size: 12px;
   line-height: 1.55;
   white-space: pre-wrap;
+}
+
+.ai-error-line {
+  color: #ff9aa5;
 }
 
 .ai-context-preview {
@@ -1819,9 +1833,300 @@ input[type="range"] {
   font-size: 13px;
 }
 
+.ai-input button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 0 10px;
+}
+
+.ai-input button:not(:disabled):hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.ai-input button svg,
+.admin-state svg,
+.admin-action-row button svg {
+  flex: 0 0 auto;
+}
+
+.ai-input button:has(svg) svg,
+.admin-state.loading svg,
+.admin-state.saving svg,
+.admin-state.testing svg,
+.admin-action-row button svg {
+  animation: none;
+}
+
+.ai-input button svg.lucide-loader-2,
+.admin-state.loading svg,
+.admin-state.saving svg,
+.admin-state.testing svg,
+.admin-action-row button:disabled svg.lucide-loader-2 {
+  animation: spin 900ms linear infinite;
+}
+
 .admin-panel {
   min-height: 100%;
   background: var(--bg);
+}
+
+.ai-admin-grid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-areas:
+    "roster editor"
+    "roster credits";
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.provider-roster,
+.provider-editor,
+.credit-editor {
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: #101115;
+}
+
+.provider-roster {
+  grid-area: roster;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 430px;
+}
+
+.provider-editor {
+  grid-area: editor;
+}
+
+.credit-editor {
+  grid-area: credits;
+}
+
+.admin-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 50px;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+}
+
+.admin-section-head strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.admin-section-head button,
+.admin-action-row button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 0 10px;
+}
+
+.admin-section-head button:hover,
+.admin-action-row button:not(:disabled):hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.admin-action-row button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.admin-section-head > span,
+.admin-state,
+.admin-message {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.admin-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: #0d0e12;
+  padding: 5px 7px;
+}
+
+.admin-state.ready {
+  border-color: rgba(29, 184, 126, 0.36);
+  color: var(--positive);
+}
+
+.admin-state.error,
+.admin-message.error {
+  border-color: rgba(229, 72, 77, 0.42);
+  color: #ff9aa5;
+}
+
+.admin-state.testing,
+.admin-state.saving,
+.admin-state.loading {
+  border-color: rgba(76, 158, 255, 0.42);
+  color: #9dc9ff;
+}
+
+.provider-roster-list {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.provider-roster-list button,
+.provider-empty {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "dot name status"
+    "dot model status";
+  align-items: center;
+  gap: 3px 8px;
+  width: 100%;
+  min-height: 58px;
+  border: 0;
+  border-bottom: 1px solid rgba(30, 32, 40, 0.76);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.provider-roster-list button:hover,
+.provider-roster-list button.active {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.provider-roster-list .provider-status {
+  grid-area: dot;
+}
+
+.provider-roster-list strong {
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-roster-list small {
+  grid-area: model;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-roster-list em {
+  grid-area: status;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-style: normal;
+  padding: 3px 5px;
+}
+
+.provider-empty {
+  grid-template-columns: 18px 1fr;
+  grid-template-areas: none;
+  cursor: default;
+}
+
+.provider-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+}
+
+.provider-form-grid.compact {
+  grid-template-columns: 180px minmax(0, 1fr);
+}
+
+.provider-form-grid label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.provider-form-grid label.wide {
+  grid-column: 1 / -1;
+}
+
+.provider-form-grid input,
+.provider-form-grid select,
+.provider-form-grid textarea {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--border-strong);
+  background: #0d0e12;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0;
+  outline: 0;
+  padding: 0 9px;
+  text-transform: none;
+}
+
+.provider-form-grid textarea {
+  min-height: 82px;
+  padding: 9px;
+  resize: vertical;
+}
+
+.provider-form-grid input:focus,
+.provider-form-grid select:focus,
+.provider-form-grid textarea:focus {
+  border-color: var(--blue);
+}
+
+.admin-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+}
+
+.admin-message {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border: 1px solid var(--border);
+  background: #0d0e12;
+  padding: 0 9px;
 }
 
 .provider-grid {
@@ -2708,6 +3013,23 @@ input[type="range"] {
 
   .provider-row {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .ai-admin-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "roster"
+      "editor"
+      "credits";
+  }
+
+  .provider-roster {
+    min-height: 220px;
+  }
+
+  .provider-form-grid,
+  .provider-form-grid.compact {
+    grid-template-columns: 1fr;
   }
 }
 

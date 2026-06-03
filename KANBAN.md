@@ -63,6 +63,11 @@
 - [x] X OAuth disabled-provider UX hardened so users return to Crest with a clear setup error instead of Supabase JSON.
 - [x] Ticker detail page added with timeframe-specific snapshot history and OHLC candlestick chart.
 - [x] Market snapshot history persistence added for future 30m and 4h detail records.
+- [x] Admin AI provider configuration persisted in Supabase with encrypted API keys.
+- [x] Server-side admin enforcement added for `/admin/ai-config` and AI admin APIs.
+- [x] OpenAI-compatible AI provider route added with admin test connection support.
+- [x] AI chat route added with latest full timeframe snapshot context injection.
+- [x] Weekly AI prompt credit policy added with configurable global limit and WIB reset.
 
 ## In Progress
 
@@ -73,15 +78,13 @@
 
 - [ ] Add optional metadata enrichment for chain/sector classification.
 - [ ] Monitor Supabase Cron run history after the next 30-minute boundary.
-- [ ] AI provider abstraction and mock-to-live SSE route.
+- [ ] Add streaming SSE transport for AI responses after non-streaming provider route is stable.
 - [ ] Persist pinned assets and saved filter presets through Supabase user tables.
 - [ ] Add Playwright smoke tests for the signed-out entry, terminal journey, filters, search, pagination, and AI drawer.
 
 ## Backlog
 
-- [ ] Admin AI provider encryption.
 - [ ] Provider fallback chain.
-- [ ] Admin role enforcement for `/admin/ai-config` and admin APIs.
 - [ ] Supabase Realtime subscription/reconnect strategy for market snapshot updates.
 - [ ] Production observability.
 - [ ] CI workflow for typecheck, build, lint, and smoke tests.
