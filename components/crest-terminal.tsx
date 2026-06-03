@@ -27,7 +27,7 @@ import {
   Wallet
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
-import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CrestAuthProfile } from "@/lib/auth/profile";
 import { formatCompactDollar, formatPct, formatPrice } from "@/lib/formatters";
 import type { AiChatResponse, AiMarketContext, AiProviderConfig, AiSettings, AiUsageQuota } from "@/lib/ai/types";
@@ -1744,6 +1744,7 @@ function AdminPanel() {
   const [status, setStatus] = useState<AiAdminStatus>("loading");
   const [message, setMessage] = useState("");
   const [providers, setProviders] = useState<AiProviderConfig[]>([]);
+  const providerEditorRef = useRef<HTMLElement | null>(null);
   const [settings, setSettings] = useState<AiSettings>({
     weeklyPromptLimit: 5,
     resetTimezone: "Asia/Jakarta",
@@ -1783,8 +1784,20 @@ function AdminPanel() {
     setMessage("");
 
     try {
+      const providerForm = readProviderForm(form, providerEditorRef.current);
+
+      if (!providerForm.providerName || !providerForm.baseUrl || !providerForm.model) {
+        throw new Error("Provider, base URL, and model are required.");
+      }
+
+      if (!providerForm.id && !providerForm.apiKey) {
+        throw new Error("API key is required before saving a new provider.");
+      }
+
+      setForm(providerForm);
+
       const response = await fetch("/api/admin/ai-config", {
-        body: JSON.stringify({ provider: form }),
+        body: JSON.stringify({ provider: providerForm }),
         cache: "no-store",
         headers: {
           "Content-Type": "application/json"
@@ -1917,7 +1930,7 @@ function AdminPanel() {
           </div>
         </aside>
 
-        <section className="provider-editor" aria-label="AI provider editor">
+        <section className="provider-editor" aria-label="AI provider editor" ref={providerEditorRef}>
           <div className="admin-section-head">
             <div>
               <p className="micro-label">OpenAI-compatible route</p>
@@ -1928,13 +1941,21 @@ function AdminPanel() {
               {status}
             </span>
           </div>
+          {message && (
+            <div className={`provider-feedback ${status}`} role={status === "error" ? "alert" : "status"}>
+              {status === "error" ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
+              <span>{message}</span>
+            </div>
+          )}
 
           <div className="provider-form-grid">
             <label>
               Provider
               <input
                 disabled={isBusy}
+                name="providerName"
                 onChange={(event) => setForm((current) => ({ ...current, providerName: event.target.value }))}
+                onInput={(event) => setForm((current) => ({ ...current, providerName: event.currentTarget.value }))}
                 placeholder="Ollama Cloud"
                 value={form.providerName}
               />
@@ -1954,7 +1975,9 @@ function AdminPanel() {
               Base URL
               <input
                 disabled={isBusy}
+                name="baseUrl"
                 onChange={(event) => setForm((current) => ({ ...current, baseUrl: event.target.value }))}
+                onInput={(event) => setForm((current) => ({ ...current, baseUrl: event.currentTarget.value }))}
                 placeholder="https://api.openai.com/v1"
                 value={form.baseUrl}
               />
@@ -1963,7 +1986,9 @@ function AdminPanel() {
               Model
               <input
                 disabled={isBusy}
+                name="model"
                 onChange={(event) => setForm((current) => ({ ...current, model: event.target.value }))}
+                onInput={(event) => setForm((current) => ({ ...current, model: event.currentTarget.value }))}
                 placeholder="gpt-4.1-mini"
                 value={form.model}
               />
@@ -1972,7 +1997,9 @@ function AdminPanel() {
               API key
               <input
                 disabled={isBusy}
+                name="apiKey"
                 onChange={(event) => setForm((current) => ({ ...current, apiKey: event.target.value }))}
+                onInput={(event) => setForm((current) => ({ ...current, apiKey: event.currentTarget.value }))}
                 placeholder={form.id ? "Leave blank to keep encrypted key" : "Required"}
                 type="password"
                 value={form.apiKey}
@@ -1984,6 +2011,7 @@ function AdminPanel() {
                 disabled={isBusy}
                 min={64}
                 max={8192}
+                name="maxTokens"
                 onChange={(event) => setForm((current) => ({ ...current, maxTokens: Number(event.target.value) }))}
                 type="number"
                 value={form.maxTokens}
@@ -1995,6 +2023,7 @@ function AdminPanel() {
                 disabled={isBusy}
                 max={2}
                 min={0}
+                name="temperature"
                 onChange={(event) => setForm((current) => ({ ...current, temperature: Number(event.target.value) }))}
                 step="0.05"
                 type="number"
@@ -2059,7 +2088,6 @@ function AdminPanel() {
           <Database size={15} />
           API keys are encrypted before storage. User prompts read the latest full snapshot for the active timeframe.
         </div>
-        {message && <span className={`admin-message ${status}`}>{message}</span>}
       </div>
     </section>
   );
@@ -2099,6 +2127,31 @@ function providerToForm(provider?: AiProviderConfig): AiProviderForm {
     maxTokens: provider.maxTokens,
     temperature: provider.temperature
   };
+}
+
+function readProviderForm(current: AiProviderForm, root: HTMLElement | null): AiProviderForm {
+  if (!root) return current;
+
+  return {
+    ...current,
+    providerName: readInputValue(root, "providerName", current.providerName).trim(),
+    baseUrl: readInputValue(root, "baseUrl", current.baseUrl).trim(),
+    model: readInputValue(root, "model", current.model).trim(),
+    apiKey: readInputValue(root, "apiKey", current.apiKey).trim(),
+    maxTokens: Math.max(64, Math.min(8192, Math.floor(readNumericInputValue(root, "maxTokens", current.maxTokens)))),
+    temperature: Math.max(0, Math.min(2, readNumericInputValue(root, "temperature", current.temperature)))
+  };
+}
+
+function readInputValue(root: HTMLElement, name: string, fallback: string) {
+  const input = root.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[name="${name}"]`);
+  return input?.value || fallback;
+}
+
+function readNumericInputValue(root: HTMLElement, name: string, fallback: number) {
+  const value = readInputValue(root, name, String(fallback)).replace(",", ".");
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function upsertProviderList(providers: AiProviderConfig[], provider: AiProviderConfig) {

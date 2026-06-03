@@ -1875,7 +1875,11 @@ input[type="range"] {
 }
 
 .admin-panel {
+  height: 100%;
   min-height: 100%;
+  overflow: auto;
+  padding-bottom: 56px;
+  scrollbar-gutter: stable;
   background: var(--bg);
 }
 
@@ -2104,6 +2108,33 @@ input[type="range"] {
   min-height: 82px;
   padding: 9px;
   resize: vertical;
+}
+
+.provider-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  background: #0d0e12;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  padding: 9px 12px;
+}
+
+.provider-feedback.ready {
+  color: #8beecb;
+}
+
+.provider-feedback.error {
+  background: rgba(229, 72, 77, 0.06);
+  color: #ff9aa5;
+}
+
+.provider-feedback svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
 }
 
 .provider-form-grid input:focus,
