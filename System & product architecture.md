@@ -60,6 +60,14 @@ AI ASSISTANT SYSTEM
 - Preset prompt templates selectable from dropdown
 - AI response can reference asset tickers — highlight matching rows in main grid on response
 
+TELEGRAM MARKET ALERTS
+- Send a Telegram notification every 30 minutes after a successful 30m Binance refresh
+- Include all tickers where 30m setup is Long/Buy and latest 4h regime is Bullish
+- Include all tickers where 30m setup is Short/Sell and latest 4h regime is Bearish
+- Include 30m Top 100, Top 200, and Top 300 volume breadth with Avg RSI, Long/Buy count, Short/Sell count, and Wait count
+- Use `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and optional `TELEGRAM_MESSAGE_THREAD_ID` as server-only environment variables
+- Telegram delivery must be non-fatal: market refresh should still succeed when Telegram is not configured or Telegram delivery fails
+
 ADMIN PANEL — AI PROVIDER CONFIGURATION
 Route: /admin/ai-config (role: admin only)
 - Support providers: Anthropic, OpenRouter, Ollama (self-hosted), OpenAI, Groq, DeepSeek, Custom HTTP endpoint

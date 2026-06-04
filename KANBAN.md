@@ -68,11 +68,15 @@
 - [x] OpenAI-compatible AI provider route added with admin test connection support.
 - [x] AI chat route added with latest full timeframe snapshot context injection.
 - [x] Weekly AI prompt credit policy added with configurable global limit and WIB reset.
+- [x] Telegram market alert requirement added with 30m setup and 4h regime template.
+- [x] Telegram notification sender implemented behind server-only environment variables.
+- [x] Market refresh cron integrated with non-fatal Telegram alert delivery.
 
 ## In Progress
 
 - [ ] Backend Phase 4 hardening: Binance Top 300 volume ingestion monitoring and edge-case verification.
 - [ ] Auth provider dashboard/API setup: configure legacy Twitter OAuth 1.0a in Supabase cloud.
+- [ ] Production Telegram bot token and chat id configuration.
 
 ## Next
 

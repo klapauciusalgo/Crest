@@ -12,6 +12,16 @@ Crest is used by crypto market analysts and active traders who need to scan volu
 
 Crest turns live market snapshots into a disciplined terminal for regime tracking, liquidity rotation, and context-aware AI market review. Success means the user can trust the latest available data, inspect the reasoning behind setups, and ask AI questions without leaving the analytical flow.
 
+## Telegram Alerts
+
+Crest sends a scheduled Telegram market alert every 30 minutes after the latest 30m Binance snapshot refresh completes. The alert summarizes actionable 30m setups that agree with the latest 4h regime and includes Top 100, Top 200, and Top 300 volume breadth using 30m labels: Long/Buy, Short/Sell, and Wait.
+
+Required production environment variables:
+
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
+- Optional: `TELEGRAM_MESSAGE_THREAD_ID` for Telegram forum topics.
+
 ## Brand Personality
 
 Precise, restrained, operational.
