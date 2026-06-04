@@ -8,17 +8,23 @@ export type TelegramDeliveryResult =
   | {
       status: "sent";
       messageCount: number;
+      targetCount: number;
     }
   | {
       status: "failed";
       messageCount: number;
+      targetCount: number;
       error: string;
     };
 
-type TelegramConfig = {
-  botToken: string;
+type TelegramTarget = {
   chatId: string;
   messageThreadId?: number;
+};
+
+type TelegramConfig = {
+  botToken: string;
+  targets: TelegramTarget[];
 };
 
 export async function sendTelegramMessages(messages: string[]): Promise<TelegramDeliveryResult> {
@@ -41,19 +47,23 @@ export async function sendTelegramMessages(messages: string[]): Promise<Telegram
   let sentCount = 0;
 
   try {
-    for (const text of nonEmptyMessages) {
-      await sendTelegramMessage(config, text);
-      sentCount += 1;
+    for (const target of config.targets) {
+      for (const text of nonEmptyMessages) {
+        await sendTelegramMessage(config.botToken, target, text);
+        sentCount += 1;
+      }
     }
 
     return {
       status: "sent",
-      messageCount: sentCount
+      messageCount: sentCount,
+      targetCount: config.targets.length
     };
   } catch (error) {
     return {
       status: "failed",
       messageCount: sentCount,
+      targetCount: config.targets.length,
       error: getSafeErrorMessage(error)
     };
   }
@@ -63,33 +73,43 @@ export function isTelegramConfigured() {
   return Boolean(getTelegramConfig());
 }
 
+export function getTelegramTargetCount() {
+  return getTelegramConfig()?.targets.length ?? 0;
+}
+
 function getTelegramConfig(): TelegramConfig | null {
   const botToken = readServerEnv("TELEGRAM_BOT_TOKEN");
   const chatId = readServerEnv("TELEGRAM_CHAT_ID");
   const messageThreadId = readServerEnv("TELEGRAM_MESSAGE_THREAD_ID");
+  const additionalTargets = readServerEnv("TELEGRAM_ADDITIONAL_TARGETS");
 
-  if (!botToken || !chatId) return null;
+  if (!botToken) return null;
 
-  const parsedThreadId = messageThreadId ? Number(messageThreadId) : undefined;
+  const targets = parseAdditionalTelegramTargets(additionalTargets);
+  if (chatId) {
+    targets.push({
+      chatId,
+      messageThreadId: parseTelegramThreadId(messageThreadId)
+    });
+  }
 
-  return {
-    botToken,
-    chatId,
-    messageThreadId: Number.isFinite(parsedThreadId) ? parsedThreadId : undefined
-  };
+  const dedupedTargets = dedupeTelegramTargets(targets);
+  if (dedupedTargets.length === 0) return null;
+
+  return { botToken, targets: dedupedTargets };
 }
 
-async function sendTelegramMessage(config: TelegramConfig, text: string) {
-  const response = await fetch(`https://api.telegram.org/bot${config.botToken}/sendMessage`, {
+async function sendTelegramMessage(botToken: string, target: TelegramTarget, text: string) {
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      chat_id: config.chatId,
+      chat_id: target.chatId,
       text,
       disable_web_page_preview: true,
-      ...(config.messageThreadId ? { message_thread_id: config.messageThreadId } : {})
+      ...(typeof target.messageThreadId === "number" ? { message_thread_id: target.messageThreadId } : {})
     }),
     cache: "no-store"
   });
@@ -98,6 +118,57 @@ async function sendTelegramMessage(config: TelegramConfig, text: string) {
   if (!response.ok || payload?.ok === false) {
     throw new Error(payload?.description || `Telegram send failed with HTTP ${response.status}.`);
   }
+}
+
+function parseAdditionalTelegramTargets(value: string | undefined): TelegramTarget[] {
+  if (!value?.trim()) return [];
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return [];
+
+    const targets: TelegramTarget[] = [];
+    for (const item of parsed) {
+      if (!item || typeof item !== "object") continue;
+
+      const source = item as Record<string, unknown>;
+      const chatId = source.chatId ?? source.chat_id;
+      const messageThreadId = source.messageThreadId ?? source.message_thread_id;
+
+      if (typeof chatId !== "string" && typeof chatId !== "number") continue;
+
+      targets.push({
+        chatId: String(chatId),
+        messageThreadId: parseTelegramThreadId(messageThreadId)
+      });
+    }
+
+    return targets;
+  } catch {
+    return [];
+  }
+}
+
+function parseTelegramThreadId(value: unknown) {
+  if (value === undefined || value === null || value === "") return undefined;
+
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function dedupeTelegramTargets(targets: TelegramTarget[]) {
+  const deduped = new Map<string, TelegramTarget>();
+
+  for (const target of targets) {
+    if (!target.chatId.trim()) continue;
+    const normalized: TelegramTarget = {
+      chatId: target.chatId.trim(),
+      messageThreadId: target.messageThreadId
+    };
+    deduped.set(`${normalized.chatId}:${normalized.messageThreadId ?? ""}`, normalized);
+  }
+
+  return [...deduped.values()];
 }
 
 function getSafeErrorMessage(error: unknown) {

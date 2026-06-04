@@ -21,6 +21,7 @@ Required production environment variables:
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 - Optional: `TELEGRAM_MESSAGE_THREAD_ID` for Telegram forum topics.
+- Optional: `TELEGRAM_ADDITIONAL_TARGETS` as a JSON array of `{ "chatId": "...", "messageThreadId": 123 }` objects for sending the same alert to extra chats or forum topics.
 
 ## Brand Personality
 

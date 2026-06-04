@@ -2,7 +2,7 @@ import { buildTimeframeBreadth } from "@/lib/market/breadth";
 import { readSupabaseMarketSnapshot } from "@/lib/market/supabase-provider";
 import type { MarketAssetSnapshot, MarketBreadthSnapshot, MarketSnapshot } from "@/lib/market/types";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { isTelegramConfigured, sendTelegramMessages, type TelegramDeliveryResult } from "@/lib/notifications/telegram";
+import { getTelegramTargetCount, sendTelegramMessages, type TelegramDeliveryResult } from "@/lib/notifications/telegram";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Timeframe } from "@/lib/mock-data";
 
@@ -20,12 +20,14 @@ export type MarketAlertResult =
   | {
       status: "sent";
       messageCount: number;
+      targetCount: number;
       longCount: number;
       shortCount: number;
     }
   | {
       status: "failed";
       messageCount: number;
+      targetCount: number;
       longCount: number;
       shortCount: number;
       error: string;
@@ -65,7 +67,8 @@ export async function sendLatestThirtyMinuteMarketAlert(): Promise<MarketAlertRe
       };
     }
 
-    if (!isTelegramConfigured()) {
+    const telegramTargetCount = getTelegramTargetCount();
+    if (telegramTargetCount === 0) {
       return {
         status: "skipped",
         reason: "missing_config"
@@ -73,7 +76,7 @@ export async function sendLatestThirtyMinuteMarketAlert(): Promise<MarketAlertRe
     }
 
     const alertBucket = getThirtyMinuteAlertBucket(snapshot.freshness.updatedAt);
-    if (await hasSentTelegramAlert(client, alertBucket)) {
+    if (await hasSentTelegramAlert(client, alertBucket, telegramTargetCount)) {
       return {
         status: "skipped",
         reason: "already_sent"
@@ -88,6 +91,7 @@ export async function sendLatestThirtyMinuteMarketAlert(): Promise<MarketAlertRe
     return {
       status: "failed",
       messageCount: 0,
+      targetCount: 0,
       longCount: 0,
       shortCount: 0,
       error: getSafeErrorMessage(error)
@@ -128,7 +132,7 @@ export function buildMarketAlertMessages(snapshot: MarketSnapshot) {
   };
 }
 
-async function hasSentTelegramAlert(client: SupabaseClient, alertBucket: string) {
+async function hasSentTelegramAlert(client: SupabaseClient, alertBucket: string, targetCount: number) {
   const { data, error } = await client
     .from("data_refresh_runs")
     .select("metadata")
@@ -145,8 +149,23 @@ async function hasSentTelegramAlert(client: SupabaseClient, alertBucket: string)
 
   return (data || []).some((row: { metadata?: Record<string, unknown> | null }) => {
     const metadata = row.metadata || {};
-    return metadata.kind === "telegram_market_alert" && metadata.alert_bucket === alertBucket;
+    return (
+      metadata.kind === "telegram_market_alert" &&
+      metadata.alert_bucket === alertBucket &&
+      getRecordedTelegramTargetCount(metadata) >= targetCount
+    );
   });
+}
+
+function getRecordedTelegramTargetCount(metadata: Record<string, unknown>) {
+  const value = metadata.target_count;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return 1;
 }
 
 async function recordTelegramAlertRun(
@@ -175,7 +194,8 @@ async function recordTelegramAlertRun(
       snapshot_updated_at: snapshot.freshness.updatedAt,
       long_count: longCount,
       short_count: shortCount,
-      message_count: delivery.messageCount
+      message_count: delivery.messageCount,
+      target_count: delivery.targetCount
     }
   });
 
@@ -276,6 +296,7 @@ function mapDeliveryResult(delivery: TelegramDeliveryResult, longCount: number, 
     return {
       status: "sent",
       messageCount: delivery.messageCount,
+      targetCount: delivery.targetCount,
       longCount,
       shortCount
     };
@@ -285,6 +306,7 @@ function mapDeliveryResult(delivery: TelegramDeliveryResult, longCount: number, 
     return {
       status: "failed",
       messageCount: delivery.messageCount,
+      targetCount: delivery.targetCount,
       longCount,
       shortCount,
       error: delivery.error
