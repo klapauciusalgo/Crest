@@ -232,6 +232,15 @@ const baseColumns: GridColumn[] = [
   { key: "maDistancePct", label: "MA Dist." }
 ];
 
+function getGridColumns(timeframe: Timeframe): GridColumn[] {
+  return [
+    ...baseColumns,
+    timeframe === "4h"
+      ? { key: "regime4h", label: "Regime" }
+      : { key: "recommendation30m", label: "Setup" }
+  ];
+}
+
 const multiTimeframeRules = {
   regime_4h: {
     bullish: "price > MA111 and RSI > 55",
@@ -716,6 +725,11 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
     });
   }
 
+  function applySort(key: SortKey, direction: SortDirection) {
+    setSortKey(key);
+    setSortDirection(direction);
+  }
+
   function toggleChain(chain: ChainKey) {
     setActivePreset("Custom");
     setSelectedChains((current) =>
@@ -904,6 +918,12 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
                     aria-label="Search ticker or coin"
                   />
                 </label>
+                <MobileSortControls
+                  timeframe={timeframe}
+                  sortKey={sortKey}
+                  sortDirection={sortDirection}
+                  onSortChange={applySort}
+                />
                 <div className="toolbar-stats">
                   <Metric label="Pinned" value={`${pinned.length}/5`} />
                   <Metric
@@ -1418,10 +1438,7 @@ function AssetGrid({
   onPage: (page: number) => void;
   onPin: (symbol: string) => void;
 }) {
-  const visibleColumns: GridColumn[] = [
-    ...baseColumns,
-    timeframe === "4h" ? { key: "regime4h", label: "Regime" } : { key: "recommendation30m", label: "Setup" }
-  ];
+  const visibleColumns = getGridColumns(timeframe);
   const firstRow = totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const lastRow = Math.min(currentPage * pageSize, totalRows);
 
@@ -1537,6 +1554,59 @@ function AssetGrid({
         </div>
       </div>
     </div>
+  );
+}
+
+function MobileSortControls({
+  timeframe,
+  sortKey,
+  sortDirection,
+  onSortChange
+}: {
+  timeframe: Timeframe;
+  sortKey: SortKey;
+  sortDirection: SortDirection;
+  onSortChange: (key: SortKey, direction: SortDirection) => void;
+}) {
+  const columns = getGridColumns(timeframe);
+  const activeDirection = sortDirection === "none" ? getDefaultSortDirection(sortKey) : sortDirection;
+
+  return (
+    <section className="mobile-sort-panel" aria-label="Mobile asset sorting">
+      <label className="mobile-sort-select">
+        <span>Sort</span>
+        <select
+          aria-label="Sort assets by"
+          value={sortKey}
+          onChange={(event) => {
+            const nextKey = event.target.value as SortKey;
+            onSortChange(nextKey, getDefaultSortDirection(nextKey));
+          }}
+        >
+          {columns.map((column) => (
+            <option key={column.key} value={column.key}>
+              {column.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="mobile-sort-direction" aria-label="Sort direction" role="group">
+        <button
+          className={activeDirection === "desc" ? "active" : ""}
+          onClick={() => onSortChange(sortKey, "desc")}
+          type="button"
+        >
+          {isTextSortKey(sortKey) ? "Z to A" : "High to low"}
+        </button>
+        <button
+          className={activeDirection === "asc" ? "active" : ""}
+          onClick={() => onSortChange(sortKey, "asc")}
+          type="button"
+        >
+          {isTextSortKey(sortKey) ? "A to Z" : "Low to high"}
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -2618,6 +2688,14 @@ function sortGlyphAscii(direction: SortDirection) {
   if (direction === "asc") return "↑";
   if (direction === "desc") return "↓";
   return "";
+}
+
+function getDefaultSortDirection(key: SortKey): SortDirection {
+  return isTextSortKey(key) ? "asc" : "desc";
+}
+
+function isTextSortKey(key: SortKey) {
+  return key === "symbol" || key === "chain" || key === "regime4h" || key === "recommendation30m";
 }
 
 function getAriaSort(direction: SortDirection) {

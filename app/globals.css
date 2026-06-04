@@ -957,6 +957,10 @@ input[type="range"] {
   color: color-mix(in srgb, var(--muted), var(--text) 16%);
 }
 
+.mobile-sort-panel {
+  display: none;
+}
+
 .toolbar-stats {
   display: flex;
   gap: 8px;
@@ -3257,6 +3261,66 @@ input[type="range"] {
 
   .market-search {
     width: 100%;
+  }
+
+  .mobile-sort-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    width: 100%;
+    border: 1px solid var(--border);
+    background: #101115;
+    padding: 8px;
+  }
+
+  .mobile-sort-select {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+
+  .mobile-sort-select select {
+    min-width: 0;
+    width: 100%;
+    height: 34px;
+    border: 1px solid var(--border);
+    outline: 0;
+    background: #0d0e12;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 0 9px;
+  }
+
+  .mobile-sort-select select:focus {
+    border-color: var(--blue);
+  }
+
+  .mobile-sort-direction {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .mobile-sort-direction button {
+    min-height: 34px;
+    border: 1px solid var(--border);
+    background: #0d0e12;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .mobile-sort-direction button.active {
+    border-color: rgba(76, 158, 255, 0.55);
+    background: rgba(76, 158, 255, 0.11);
+    color: var(--text);
   }
 
   .grid-shell {
