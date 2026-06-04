@@ -16,6 +16,7 @@ export type MarketAlertResult =
         | "missing_config"
         | "empty_messages"
         | "already_sent";
+      targetCount?: number;
     }
   | {
       status: "sent";
@@ -71,7 +72,8 @@ export async function sendLatestThirtyMinuteMarketAlert(): Promise<MarketAlertRe
     if (telegramTargetCount === 0) {
       return {
         status: "skipped",
-        reason: "missing_config"
+        reason: "missing_config",
+        targetCount: telegramTargetCount
       };
     }
 
@@ -79,7 +81,8 @@ export async function sendLatestThirtyMinuteMarketAlert(): Promise<MarketAlertRe
     if (await hasSentTelegramAlert(client, alertBucket, telegramTargetCount)) {
       return {
         status: "skipped",
-        reason: "already_sent"
+        reason: "already_sent",
+        targetCount: telegramTargetCount
       };
     }
 
