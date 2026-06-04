@@ -71,6 +71,7 @@
 - [x] Telegram market alert requirement added with 30m setup and 4h regime template.
 - [x] Telegram notification sender implemented behind server-only environment variables.
 - [x] Market refresh cron integrated with non-fatal Telegram alert delivery.
+- [x] Lightweight Telegram alert cron endpoint added as a post-refresh safety path.
 
 ## In Progress
 

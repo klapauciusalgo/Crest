@@ -67,6 +67,8 @@ TELEGRAM MARKET ALERTS
 - Include 30m Top 100, Top 200, and Top 300 volume breadth with Avg RSI, Long/Buy count, Short/Sell count, and Wait count
 - Use `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and optional `TELEGRAM_MESSAGE_THREAD_ID` as server-only environment variables
 - Telegram delivery must be non-fatal: market refresh should still succeed when Telegram is not configured or Telegram delivery fails
+- Schedule a lightweight alert-only endpoint after the refresh window so Telegram delivery does not depend on the heavier Binance ingestion request staying open
+- Use 30-minute bucket duplicate protection so direct refresh alerts and alert-only cron cannot send the same snapshot twice
 
 ADMIN PANEL — AI PROVIDER CONFIGURATION
 Route: /admin/ai-config (role: admin only)
