@@ -4,6 +4,7 @@ import type { MarketAssetSnapshot, MarketBreadthSnapshot, MarketSnapshot } from 
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { isTelegramConfigured, sendTelegramMessages, type TelegramDeliveryResult } from "@/lib/notifications/telegram";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Timeframe } from "@/lib/mock-data";
 
 export type MarketAlertResult =
   | {
@@ -31,6 +32,20 @@ export type MarketAlertResult =
     };
 
 const telegramMessageMaxLength = 3900;
+
+export async function maybeSendThirtyMinuteMarketAlert(
+  timeframes: Timeframe[],
+  notifyParam: string | null
+): Promise<MarketAlertResult> {
+  if (notifyParam === "false" || !timeframes.includes("30m")) {
+    return {
+      status: "skipped",
+      reason: "no_30m_refresh"
+    };
+  }
+
+  return sendLatestThirtyMinuteMarketAlert();
+}
 
 export async function sendLatestThirtyMinuteMarketAlert(): Promise<MarketAlertResult> {
   try {
