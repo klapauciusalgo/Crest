@@ -10,6 +10,7 @@ BEHAVIOR RULES
 CONTEXT FORMAT (injected automatically per request)
 {
   "timeframe": "4h",
+  "btc_regime_4h": "Bullish",
   "active_preset": "Manual",
   "filter_state": { "chains": ["BSC", "ETH"], "rsi_range": [0, 35], "ma_distance_range": [-100, 0] },
   "sort": { "key": "priceChange24h", "direction": "desc" },
@@ -26,14 +27,15 @@ CONTEXT FORMAT (injected automatically per request)
       "neutral": "all mixed or boundary conditions"
     },
     "recommendation_30m": {
-      "long_buy": "4h Bullish and 30m RSI < 35",
-      "short_sell": "4h Bearish and 30m RSI > 70",
-      "wait": "all other conditions"
+      "global_gate": "BTC 4h regime controls directional setup side",
+      "long_buy": "BTC 4h Bullish and asset 30m RSI < 35",
+      "short_sell": "BTC 4h Bearish and asset 30m RSI > 70",
+      "wait": "BTC 4h Neutral, missing BTC data, or all other conditions"
     }
   },
   "signal_summary": { "bullish": 6, "bearish": 5, "neutral": 9, "longBuy": 1, "shortSell": 0, "wait": 19 },
   "visible_assets": [
-    { "symbol": "BNB", "price": 412.5, "price_change_24h": -2.1, "rsi_14": 28.3, "volume_change_24h": +15.2, "chain": "BSC", "sectors": ["Layer 1", "CEX"], "ma111": 440.0, "ma_distance_pct": -6.25, "regime_4h": "Bearish", "rsi_30m": 31.8, "recommendation_30m": "Wait", "signal_reason": "4h bearish; waiting for 30m RSI above 70." },
+    { "symbol": "BNB", "price": 412.5, "price_change_24h": -2.1, "rsi_14": 28.3, "volume_change_24h": +15.2, "chain": "BSC", "sectors": ["Layer 1", "CEX"], "ma111": 440.0, "ma_distance_pct": -6.25, "regime_4h": "Bearish", "rsi_30m": 31.8, "recommendation_30m": "Wait", "signal_reason": "BTC 4h bullish; waiting for 30m RSI below 35. Asset 4h regime is bearish." },
     ...up to 50 rows max
   ],
   "chain_summary": {

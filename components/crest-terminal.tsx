@@ -155,6 +155,7 @@ type AiProviderForm = {
 };
 type AiContextSnapshot = {
   timeframe: Timeframe;
+  btcRegime4h: string;
   dataStatus: {
     source: string;
     loadStatus: MarketLoadStatus;
@@ -248,9 +249,10 @@ const multiTimeframeRules = {
     neutral: "all mixed or boundary conditions"
   },
   recommendation_30m: {
-    long_buy: "4h Bullish and 30m RSI < 35",
-    short_sell: "4h Bearish and 30m RSI > 70",
-    wait: "all other conditions"
+    global_gate: "BTC 4h regime controls directional setup side",
+    long_buy: "BTC 4h Bullish and asset 30m RSI < 35",
+    short_sell: "BTC 4h Bearish and asset 30m RSI > 70",
+    wait: "BTC 4h Neutral, missing BTC data, or all other conditions"
   }
 };
 const pageSize = 20;
@@ -369,6 +371,7 @@ export function CrestTerminal({ initialView }: { initialView: ViewMode }) {
   const aiContext = useMemo<AiContextSnapshot>(
     () => ({
       timeframe,
+      btcRegime4h: getBtcRegime4h(sourceAssets),
       dataStatus: {
         source: activeFreshness?.source || (activeMarketStatus === "fallback" ? "mock" : "loading"),
         loadStatus: activeMarketStatus,
@@ -1664,6 +1667,7 @@ function AiDrawer({
         },
         sort: context.sort,
         data_status: context.dataStatus,
+        btc_regime_4h: context.btcRegime4h,
         rank_basis: context.dataStatus.rankBasis,
         multi_timeframe_rules: multiTimeframeRules,
         visible_rows_focus: context.visibleAssets.length,
@@ -2627,6 +2631,10 @@ function getMarketBreadth(rows: AssetSignalRow[], timeframe: Timeframe): MarketB
       negativePct: Math.round((negativeCount / total) * 100)
     };
   });
+}
+
+function getBtcRegime4h(assets: AssetSignalRow[]) {
+  return assets.find((asset) => asset.symbol === "BTC")?.regime4h || "Neutral";
 }
 
 function getSignalSummary(rows: AssetSignalRow[]): AiContextSnapshot["signalSummary"] {

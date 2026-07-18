@@ -14,7 +14,7 @@ Crest turns live market snapshots into a disciplined terminal for regime trackin
 
 ## Telegram Alerts
 
-Crest sends a scheduled Telegram market alert every 30 minutes after the latest 30m Binance snapshot refresh completes. The alert summarizes actionable 30m setups that agree with the latest 4h regime and includes Top 100, Top 200, and Top 300 volume breadth using 30m labels: Long/Buy, Short/Sell, and Wait. A lightweight alert-only cron endpoint runs after the data refresh as a safety path, with bucket-based duplicate protection to avoid double messages.
+Crest sends a scheduled Telegram market alert every 30 minutes after the latest 30m Binance snapshot refresh completes. The alert summarizes actionable 30m setups gated by the latest BTC 4h regime and includes Top 100, Top 200, and Top 300 volume breadth using 30m labels: Long/Buy, Short/Sell, and Wait. A lightweight alert-only cron endpoint runs after the data refresh as a safety path, with bucket-based duplicate protection to avoid double messages.
 
 Required production environment variables:
 

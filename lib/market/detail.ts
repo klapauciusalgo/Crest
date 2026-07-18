@@ -1,7 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Regime4h, Timeframe, TradeRecommendation30m } from "@/lib/mock-data";
 import { getMockMarketSnapshot } from "@/lib/market/mock-provider";
-import { getRecommendation30mFromValues, getRegime4hFromValues, deriveIndicatorValues } from "@/lib/market/indicators";
+import {
+  getBtcGatedRecommendation30mFromValues,
+  getRecommendation30mFromValues,
+  getRegime4hFromValues,
+  deriveIndicatorValues
+} from "@/lib/market/indicators";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   AssetCoverageStatus,
@@ -323,6 +328,7 @@ function deriveHistoryFromCandles(
 ): MarketSnapshotHistoryPoint[] {
   const sorted = candles.sort((first, second) => first.time - second.time);
   const candidates = sorted.slice(-Math.max(limit + 111, limit));
+  const latestBtcRegime4h = getLatestBtcRegime4h(latestSnapshot);
 
   return candidates
     .map((candle, index) => {
@@ -333,7 +339,7 @@ function deriveHistoryFromCandles(
         timeframe === "4h" ? getRegime4hFromValues(indicator.price, indicator.ma111, indicator.rsi14) : latestSnapshot.regime4h;
       const recommendation30m =
         timeframe === "30m"
-          ? getRecommendation30mFromValues(indicator.rsi14, regime4h)
+          ? getBtcGatedRecommendation30mFromValues(indicator.rsi14, latestBtcRegime4h)
           : getRecommendation30mFromValues(latestSnapshot.rsi30m, regime4h);
 
       return {
@@ -414,9 +420,15 @@ function getDerivedSignalReason(
   recommendation30m: TradeRecommendation30m,
   rsi14: number
 ) {
-  if (timeframe === "30m" && recommendation30m === "Long/Buy") return `Derived 30m setup: 4h bullish and RSI ${rsi14.toFixed(1)} below 35.`;
-  if (timeframe === "30m" && recommendation30m === "Short/Sell") return `Derived 30m setup: 4h bearish and RSI ${rsi14.toFixed(1)} above 70.`;
+  if (timeframe === "30m" && recommendation30m === "Long/Buy") return `Derived 30m setup: BTC 4h bullish and RSI ${rsi14.toFixed(1)} below 35.`;
+  if (timeframe === "30m" && recommendation30m === "Short/Sell") return `Derived 30m setup: BTC 4h bearish and RSI ${rsi14.toFixed(1)} above 70.`;
   return `Derived ${timeframe} history point with ${regime4h.toLowerCase()} regime context.`;
+}
+
+function getLatestBtcRegime4h(latestSnapshot: MarketAssetSnapshot): Regime4h {
+  if (latestSnapshot.signalReason.includes("BTC 4h bullish")) return "Bullish";
+  if (latestSnapshot.signalReason.includes("BTC 4h bearish")) return "Bearish";
+  return "Neutral";
 }
 
 function getHistorySource(persistedCount: number, derivedCount: number): MarketAssetDetail["historySource"] {

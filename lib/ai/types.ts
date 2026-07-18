@@ -59,6 +59,7 @@ export type AiContextRequest = {
 
 export type AiMarketContext = {
   timeframe: Timeframe;
+  btcRegime4h: string;
   dataStatus: {
     source: string;
     lastUpdated: string;
@@ -79,6 +80,7 @@ export type AiMarketContext = {
       neutral: string;
     };
     recommendation30m: {
+      globalGate: string;
       longBuy: string;
       shortSell: string;
       wait: string;

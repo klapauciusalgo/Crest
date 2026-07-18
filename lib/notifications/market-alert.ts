@@ -106,20 +106,21 @@ export function buildMarketAlertMessages(snapshot: MarketSnapshot) {
   const rows = [...snapshot.assets].sort((first, second) => first.rank - second.rank);
   const longRows = getLongRows(rows);
   const shortRows = getShortRows(rows);
+  const btcRegime4h = getBtcRegime4h(rows);
   const breadth = snapshot.breadth.length
     ? snapshot.breadth
     : buildTimeframeBreadth(rows, "30m", snapshot.freshness.updatedAt);
   const text = [
     "Crest Market Alert",
     `Data: Binance ${formatWibDateTime(snapshot.freshness.updatedAt)}`,
-    "Timeframe: 30m setup with latest 4h regime",
+    `Timeframe: 30m setup with latest BTC 4h regime (${btcRegime4h})`,
     `Coverage: ${snapshot.freshness.coverage.covered}/${snapshot.freshness.coverage.total || rows.length}`,
     "Universe: Top volume assets",
     "",
-    `LONG/BUY + 4H BULLISH (${longRows.length})`,
+    `LONG/BUY + BTC 4H BULLISH (${longRows.length})`,
     formatTickerList(longRows),
     "",
-    `SHORT/SELL + 4H BEARISH (${shortRows.length})`,
+    `SHORT/SELL + BTC 4H BEARISH (${shortRows.length})`,
     formatTickerList(shortRows),
     "",
     "30M BREADTH",
@@ -217,14 +218,18 @@ function getThirtyMinuteAlertBucket(value: string) {
 
 function getLongRows(rows: MarketAssetSnapshot[]) {
   return rows
-    .filter((asset) => asset.recommendation30m === "Long/Buy" && asset.regime4h === "Bullish")
+    .filter((asset) => asset.recommendation30m === "Long/Buy")
     .sort(sortByVolumeThenRank);
 }
 
 function getShortRows(rows: MarketAssetSnapshot[]) {
   return rows
-    .filter((asset) => asset.recommendation30m === "Short/Sell" && asset.regime4h === "Bearish")
+    .filter((asset) => asset.recommendation30m === "Short/Sell")
     .sort(sortByVolumeThenRank);
+}
+
+function getBtcRegime4h(rows: MarketAssetSnapshot[]) {
+  return rows.find((asset) => asset.symbol === "BTC")?.regime4h || "Neutral";
 }
 
 function sortByVolumeThenRank(first: MarketAssetSnapshot, second: MarketAssetSnapshot) {

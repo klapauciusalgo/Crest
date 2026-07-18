@@ -62,8 +62,8 @@ AI ASSISTANT SYSTEM
 
 TELEGRAM MARKET ALERTS
 - Send a Telegram notification every 30 minutes after a successful 30m Binance refresh
-- Include all tickers where 30m setup is Long/Buy and latest 4h regime is Bullish
-- Include all tickers where 30m setup is Short/Sell and latest 4h regime is Bearish
+- Include all tickers where 30m setup is Long/Buy under the latest BTC 4h Bullish regime gate
+- Include all tickers where 30m setup is Short/Sell under the latest BTC 4h Bearish regime gate
 - Include 30m Top 100, Top 200, and Top 300 volume breadth with Avg RSI, Long/Buy count, Short/Sell count, and Wait count
 - Use `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, optional `TELEGRAM_MESSAGE_THREAD_ID`, and optional `TELEGRAM_ADDITIONAL_TARGETS` as server-only environment variables
 - `TELEGRAM_ADDITIONAL_TARGETS` is a JSON array of extra chat/topic targets so the same market alert can be multicast without committing private chat ids

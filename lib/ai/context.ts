@@ -5,9 +5,11 @@ import type { MarketAssetSnapshot } from "@/lib/market/types";
 export async function buildAiMarketContext(input: AiContextRequest): Promise<AiMarketContext> {
   const snapshot = await getMarketSnapshot(input.timeframe);
   const assets = snapshot.assets.slice(0, 300);
+  const btcRegime4h = getBtcRegime4h(assets);
 
   return {
     timeframe: input.timeframe,
+    btcRegime4h,
     dataStatus: {
       source: snapshot.freshness.source,
       lastUpdated: snapshot.freshness.updatedAt,
@@ -33,9 +35,10 @@ export async function buildAiMarketContext(input: AiContextRequest): Promise<AiM
         neutral: "all mixed or boundary conditions"
       },
       recommendation30m: {
-        longBuy: "4h Bullish and 30m RSI < 35",
-        shortSell: "4h Bearish and 30m RSI > 70",
-        wait: "all other conditions"
+        globalGate: `BTC 4h regime is ${btcRegime4h}`,
+        longBuy: "BTC 4h Bullish and asset 30m RSI < 35",
+        shortSell: "BTC 4h Bearish and asset 30m RSI > 70",
+        wait: "BTC 4h Neutral, missing BTC data, or all other conditions"
       }
     },
     signalSummary: buildSignalSummary(assets),
@@ -63,6 +66,10 @@ export async function buildAiMarketContext(input: AiContextRequest): Promise<AiM
     })),
     pinnedAssets: input.pinnedAssets || []
   };
+}
+
+function getBtcRegime4h(assets: MarketAssetSnapshot[]) {
+  return assets.find((asset) => asset.symbol === "BTC")?.regime4h || "Neutral";
 }
 
 export function buildAiMessages({

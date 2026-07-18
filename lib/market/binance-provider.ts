@@ -1,5 +1,5 @@
 import {
-  getRecommendation30mFromValues,
+  getBtcGatedRecommendation30mFromValues,
   getRegime4hFromValues,
   deriveIndicatorValues,
   round
@@ -216,6 +216,7 @@ function buildAssetsForTimeframe(
   timeframe: Timeframe
 ) {
   const mock30mBySymbol = new Map(mock30mAssets.map((asset) => [asset.symbol, asset]));
+  const btcRegime4h = getBtcRegime4h(candles4hBySymbol);
 
   return universeAssets.map((universeAsset) => {
     const knownAsset = mock30mBySymbol.get(universeAsset.symbol);
@@ -228,7 +229,7 @@ function buildAssetsForTimeframe(
     const indicator30m = has30m ? deriveIndicatorValues(candles30m, "30m") : fallbackAsset;
     const activeIndicator = timeframe === "4h" ? indicator4h : indicator30m;
     const regime4h = getRegime4hFromValues(indicator4h.price, indicator4h.ma111, indicator4h.rsi14);
-    const recommendation30m = getRecommendation30mFromValues(indicator30m.rsi14, regime4h);
+    const recommendation30m = getBtcGatedRecommendation30mFromValues(indicator30m.rsi14, btcRegime4h);
     const coverageStatus = has4h && has30m ? "covered" : has4h || has30m ? "partial" : "fetch_failed";
     const latestActiveCandle = (timeframe === "4h" ? candles4h : candles30m).at(-1);
 
@@ -248,12 +249,20 @@ function buildAssetsForTimeframe(
       maDistance4hPct: indicator4h.maDistancePct,
       rsi4h: indicator4h.rsi14,
       rsi30m: indicator30m.rsi14,
-      signalReason: getSignalReason(indicator4h, indicator30m, regime4h, recommendation30m, coverageStatus),
+      signalReason: getSignalReason(indicator4h, indicator30m, regime4h, recommendation30m, coverageStatus, btcRegime4h),
       source: "binance",
       coverageStatus,
       updatedAt: latestActiveCandle?.closeTime || universeAsset.updatedAt
     } satisfies MarketAssetSnapshot;
   });
+}
+
+function getBtcRegime4h(candles4hBySymbol: CandleMap): MarketAssetSnapshot["regime4h"] {
+  const btcCandles4h = candles4hBySymbol.get("BTC") || [];
+  if (btcCandles4h.length < 111) return "Neutral";
+
+  const btcIndicator4h = deriveIndicatorValues(btcCandles4h, "4h");
+  return getRegime4hFromValues(btcIndicator4h.price, btcIndicator4h.ma111, btcIndicator4h.rsi14);
 }
 
 function buildFreshness(rows: MarketAssetSnapshot[], timeframe: Timeframe, updatedAt: string): MarketSnapshot["freshness"] {
@@ -287,15 +296,16 @@ function getSignalReason(
   indicator30m: Pick<MarketAssetSnapshot, "rsi14">,
   regime4h: MarketAssetSnapshot["regime4h"],
   recommendation30m: MarketAssetSnapshot["recommendation30m"],
-  coverageStatus: MarketAssetSnapshot["coverageStatus"]
+  coverageStatus: MarketAssetSnapshot["coverageStatus"],
+  btcRegime4h: MarketAssetSnapshot["regime4h"]
 ) {
   if (coverageStatus === "fetch_failed") return "Binance pair is in the volume universe, but candle fetch did not return enough history yet.";
-  if (coverageStatus === "partial") return "Binance candle coverage is partial; signal uses available timeframe data.";
-  if (recommendation30m === "Long/Buy") return `4h bullish; Binance 30m RSI ${indicator30m.rsi14.toFixed(1)} is below 35.`;
-  if (recommendation30m === "Short/Sell") return `4h bearish; Binance 30m RSI ${indicator30m.rsi14.toFixed(1)} is above 70.`;
-  if (regime4h === "Bullish") return "4h bullish from Binance candles; waiting for 30m RSI below 35.";
-  if (regime4h === "Bearish") return "4h bearish from Binance candles; waiting for 30m RSI above 70.";
-  return `4h neutral from Binance candles; price ${indicator4h.price.toFixed(4)} vs MA111 ${indicator4h.ma111.toFixed(4)}.`;
+  if (coverageStatus === "partial") return "Binance candle coverage is partial; setup uses available data with BTC 4h regime as the global gate.";
+  if (recommendation30m === "Long/Buy") return `BTC 4h bullish; Binance 30m RSI ${indicator30m.rsi14.toFixed(1)} is below 35.`;
+  if (recommendation30m === "Short/Sell") return `BTC 4h bearish; Binance 30m RSI ${indicator30m.rsi14.toFixed(1)} is above 70.`;
+  if (btcRegime4h === "Bullish") return "BTC 4h bullish; waiting for 30m RSI below 35.";
+  if (btcRegime4h === "Bearish") return "BTC 4h bearish; waiting for 30m RSI above 70.";
+  return `BTC 4h neutral; directional 30m setups paused. Asset 4h regime is ${regime4h.toLowerCase()} with price ${indicator4h.price.toFixed(4)} vs MA111 ${indicator4h.ma111.toFixed(4)}.`;
 }
 
 async function fetchBinanceJson(path: string, params: Record<string, string>) {

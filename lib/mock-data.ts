@@ -169,12 +169,13 @@ export function enrichAssetsWithSignals(
 ): AssetSignalRow[] {
   const assets4hBySymbol = new Map(assets4h.map((asset) => [asset.symbol, asset]));
   const assets30mBySymbol = new Map(assets30m.map((asset) => [asset.symbol, asset]));
+  const btcRegime4h = getBtcRegime4h(assets4hBySymbol.get("BTC"));
 
   return activeAssets.map((asset) => {
     const asset4h = assets4hBySymbol.get(asset.symbol) || asset;
     const asset30m = assets30mBySymbol.get(asset.symbol) || asset;
     const regime4h = getRegime4h(asset4h);
-    const recommendation30m = getRecommendation30m(asset30m, regime4h);
+    const recommendation30m = getRecommendation30m(asset30m, btcRegime4h);
 
     return {
       ...asset,
@@ -185,7 +186,7 @@ export function enrichAssetsWithSignals(
       maDistance4hPct: asset4h.maDistancePct,
       rsi4h: asset4h.rsi14,
       rsi30m: asset30m.rsi14,
-      signalReason: getSignalReason(asset4h, asset30m, regime4h, recommendation30m)
+      signalReason: getSignalReason(asset4h, asset30m, regime4h, recommendation30m, btcRegime4h)
     };
   });
 }
@@ -194,6 +195,10 @@ export function getRegime4h(asset: AssetRow): Regime4h {
   if (asset.price > asset.ma111 && asset.rsi14 > 55) return "Bullish";
   if (asset.price < asset.ma111 && asset.rsi14 < 50) return "Bearish";
   return "Neutral";
+}
+
+function getBtcRegime4h(asset: AssetRow | undefined): Regime4h {
+  return asset ? getRegime4h(asset) : "Neutral";
 }
 
 export function getRecommendation30m(asset30m: AssetRow, regime4h: Regime4h): TradeRecommendation30m {
@@ -318,7 +323,7 @@ export const aiPresetResponses: Record<string, string> = {
   ma:
     "$CAKE, $PENDLE, and $ETH are near MA111 support. $CAKE is closest to the -5.00% breakdown band and has the strongest volume confirmation.\n\n> **Next:** \"which MA111 support names have RSI below 40?\"",
   setup:
-    "Use the 4h regime first, then the 30m trigger. Long/Buy only appears when the 4h regime is bullish and 30m RSI is below 35. Short/Sell only appears when the 4h regime is bearish and 30m RSI is above 70.\n\n> **Next:** \"show actionable 30m setups by chain\""
+    "Use BTC 4h regime as the global market gate, then the asset 30m RSI trigger. Long/Buy only appears when BTC 4h is bullish and asset 30m RSI is below 35. Short/Sell only appears when BTC 4h is bearish and asset 30m RSI is above 70.\n\n> **Next:** \"show actionable 30m setups by chain\""
 };
 
 export const providerConfigs: ProviderConfig[] = [
@@ -344,25 +349,26 @@ function getSignalReason(
   asset4h: AssetRow,
   asset30m: AssetRow,
   regime4h: Regime4h,
-  recommendation30m: TradeRecommendation30m
+  recommendation30m: TradeRecommendation30m,
+  btcRegime4h: Regime4h
 ) {
   if (recommendation30m === "Long/Buy") {
-    return `4h bullish; 30m RSI ${asset30m.rsi14.toFixed(1)} is below the 35 long trigger.`;
+    return `BTC 4h bullish; 30m RSI ${asset30m.rsi14.toFixed(1)} is below the 35 long trigger.`;
   }
 
   if (recommendation30m === "Short/Sell") {
-    return `4h bearish; 30m RSI ${asset30m.rsi14.toFixed(1)} is above the 70 short trigger.`;
+    return `BTC 4h bearish; 30m RSI ${asset30m.rsi14.toFixed(1)} is above the 70 short trigger.`;
   }
 
-  if (regime4h === "Bullish") {
-    return `4h bullish; waiting for 30m RSI below 35.`;
+  if (btcRegime4h === "Bullish") {
+    return `BTC 4h bullish; waiting for 30m RSI below 35. Asset 4h regime is ${regime4h.toLowerCase()}.`;
   }
 
-  if (regime4h === "Bearish") {
-    return `4h bearish; waiting for 30m RSI above 70.`;
+  if (btcRegime4h === "Bearish") {
+    return `BTC 4h bearish; waiting for 30m RSI above 70. Asset 4h regime is ${regime4h.toLowerCase()}.`;
   }
 
-  return `4h neutral; price ${formatSignalPrice(asset4h.price)} vs MA111 ${formatSignalPrice(asset4h.ma111)}, RSI ${asset4h.rsi14.toFixed(1)}.`;
+  return `BTC 4h neutral; directional 30m setups paused. Asset 4h regime is ${regime4h.toLowerCase()} with price ${formatSignalPrice(asset4h.price)} vs MA111 ${formatSignalPrice(asset4h.ma111)}, RSI ${asset4h.rsi14.toFixed(1)}.`;
 }
 
 function formatSignalPrice(value: number) {
