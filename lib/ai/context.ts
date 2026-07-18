@@ -28,6 +28,14 @@ export async function buildAiMarketContext(input: AiContextRequest): Promise<AiM
       direction: input.sort?.direction || "desc"
     },
     marketBreadth: snapshot.breadth,
+    btcCorrelation: {
+      benchmark: "BTC",
+      scale: "-100 to +100",
+      method: "Pearson close-to-close log returns",
+      windowReturns: 60,
+      minimumPairedReturns: 30,
+      note: "Calculated per selected timeframe against BTC candles aligned by candle close time. Null means insufficient paired returns or zero variance."
+    },
     multiTimeframeRules: {
       regime4h: {
         bullish: "price > MA111 and RSI > 55",
@@ -57,6 +65,7 @@ export async function buildAiMarketContext(input: AiContextRequest): Promise<AiM
       rsi30m: asset.rsi30m,
       ma111: asset.ma111,
       maDistancePct: asset.maDistancePct,
+      btcCorrelationScore: asset.btcCorrelationScore,
       regime4h: asset.regime4h,
       recommendation30m: asset.recommendation30m,
       volumeChange24h: asset.volumeChange24h,
@@ -87,6 +96,7 @@ export function buildAiMessages({
     `The only valid data cutoff is ${context.dataStatus.lastUpdated} for timeframe ${context.timeframe}.`,
     "If the user asks for data outside the supplied context, say: That data is not in the latest Crest snapshot.",
     "Always reference assets as $BTC, $ETH, $BNB style tickers.",
+    "BTC correlation score is informational, scaled from -100 to +100 against BTC returns for the selected timeframe.",
     "Keep responses concise, analyst-grade, and tied to regime/setup/breadth evidence.",
     "Max response length is 300 words unless the user explicitly requests deeper analysis."
   ];

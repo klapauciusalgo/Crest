@@ -80,6 +80,7 @@ export function AssetDetailPage({
         <div className="asset-stat-strip" aria-label="Latest market state">
           <DetailMetric label="Price" value={formatPrice(latest.price)} />
           <DetailMetric label="24h" value={formatPct(latest.priceChange24h)} tone={latest.priceChange24h >= 0 ? "positive" : "negative"} />
+          <DetailMetric label="BTC Corr." value={formatCorrelationScore(latest.btcCorrelationScore)} tone={getCorrelationClass(latest.btcCorrelationScore)} />
           <DetailMetric label="RSI" value={latest.rsi14.toFixed(1)} />
           <DetailMetric label="MA111" value={formatPrice(latest.ma111)} />
           <DetailMetric label="MA dist." value={formatPct(latest.maDistancePct)} tone={latest.maDistancePct >= 0 ? "positive" : "negative"} />
@@ -124,6 +125,10 @@ export function AssetDetailPage({
               <div>
                 <dt>30m RSI</dt>
                 <dd>{latest.rsi30m.toFixed(1)}</dd>
+              </div>
+              <div>
+                <dt>BTC Corr.</dt>
+                <dd className={getCorrelationClass(latest.btcCorrelationScore)}>{formatCorrelationScore(latest.btcCorrelationScore)}</dd>
               </div>
               <div>
                 <dt>Volume chg.</dt>
@@ -315,6 +320,9 @@ function HistoryTable({ rows, timeframe }: { rows: MarketSnapshotHistoryPoint[];
                 <span className={row.maDistancePct >= 0 ? "history-sub positive" : "history-sub negative"}>
                   MA {formatPrice(row.ma111)} {formatPct(row.maDistancePct)}
                 </span>
+                <span className={`history-sub ${getCorrelationClass(row.btcCorrelationScore)}`}>
+                  BTC Corr. {formatCorrelationScore(row.btcCorrelationScore)}
+                </span>
               </td>
               <td>
                 {timeframe === "4h" ? (
@@ -336,6 +344,17 @@ function setupClass(value: string) {
   if (value === "Long/Buy") return "long";
   if (value === "Short/Sell") return "short";
   return "wait";
+}
+
+function formatCorrelationScore(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(2) : "--";
+}
+
+function getCorrelationClass(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "";
+  if (value >= 50) return "positive";
+  if (value <= -50) return "negative";
+  return "";
 }
 
 function formatLocalTime(value: string) {

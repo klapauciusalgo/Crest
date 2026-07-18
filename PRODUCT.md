@@ -12,6 +12,10 @@ Crest is used by crypto market analysts and active traders who need to scan volu
 
 Crest turns live market snapshots into a disciplined terminal for regime tracking, liquidity rotation, and context-aware AI market review. Success means the user can trust the latest available data, inspect the reasoning behind setups, and ask AI questions without leaving the analytical flow.
 
+## BTC Correlation
+
+Crest calculates a per-asset BTC correlation score for both 30m and 4h snapshots. The score uses Pearson correlation on the last 60 aligned close-to-close log returns against BTC candles, scaled from -100 to +100. BTC itself is always +100. Assets with fewer than 30 paired returns show an unavailable score until enough candles are stored.
+
 ## Telegram Alerts
 
 Crest sends a scheduled Telegram market alert every 30 minutes after the latest 30m Binance snapshot refresh completes. The alert summarizes actionable 30m setups gated by the latest BTC 4h regime and includes Top 100, Top 200, and Top 300 volume breadth using 30m labels: Long/Buy, Short/Sell, and Wait. A lightweight alert-only cron endpoint runs after the data refresh as a safety path, with bucket-based duplicate protection to avoid double messages.

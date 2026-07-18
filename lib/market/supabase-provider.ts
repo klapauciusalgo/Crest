@@ -34,6 +34,7 @@ type MarketSnapshotRecord = {
   rsi_14: string | number;
   ma_111: string | number;
   ma_distance_pct: string | number;
+  btc_correlation_score: string | number | null;
   regime_4h: string;
   recommendation_30m: string;
   price_4h: string | number;
@@ -147,6 +148,7 @@ async function readAssetSnapshots(client: SupabaseClient, timeframe: Timeframe) 
         rsi_14,
         ma_111,
         ma_distance_pct,
+        btc_correlation_score,
         regime_4h,
         recommendation_30m,
         price_4h,
@@ -215,6 +217,7 @@ function mapAssetSnapshot(row: MarketSnapshotRecord): MarketAssetSnapshot {
     rsi14: toNumber(row.rsi_14),
     ma111: toNumber(row.ma_111),
     maDistancePct: toNumber(row.ma_distance_pct),
+    btcCorrelationScore: toNullableNumber(row.btc_correlation_score),
     regime4h: row.regime_4h === "Bullish" || row.regime_4h === "Bearish" ? row.regime_4h : "Neutral",
     recommendation30m:
       row.recommendation_30m === "Long/Buy" || row.recommendation_30m === "Short/Sell" ? row.recommendation_30m : "Wait",
@@ -284,6 +287,12 @@ function getUniverseSize(universe: MarketBreadthSnapshot["universe"]) {
 
 function toNumber(value: unknown) {
   return typeof value === "number" ? value : Number(value);
+}
+
+function toNullableNumber(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = toNumber(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function toTimeframe(value: string): Timeframe {

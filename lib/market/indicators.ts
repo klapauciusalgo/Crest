@@ -1,6 +1,9 @@
 import type { Regime4h, Timeframe, TradeRecommendation30m } from "@/lib/mock-data";
 import type { OhlcvCandle } from "@/lib/market/types";
 
+const correlationWindowReturns = 60;
+const minimumPairedCorrelationReturns = 30;
+
 export function calculateSma(values: number[], length: number) {
   const window = values.slice(-length);
   if (window.length === 0) return 0;
@@ -66,6 +69,33 @@ export function deriveIndicatorValues(candles: OhlcvCandle[], timeframe: Timefra
   };
 }
 
+export function calculateBtcCorrelationScore(
+  assetCandles: OhlcvCandle[],
+  btcCandles: OhlcvCandle[],
+  windowReturns = correlationWindowReturns
+) {
+  if (assetCandles.length < 2 || btcCandles.length < 2) return null;
+
+  const btcReturnsByCloseTime = new Map(buildReturnsByCloseTime(btcCandles).map((item) => [item.closeTime, item.value]));
+  const pairedReturns = buildReturnsByCloseTime(assetCandles)
+    .map((assetReturn) => {
+      const btcReturn = btcReturnsByCloseTime.get(assetReturn.closeTime);
+      if (btcReturn === undefined) return null;
+      return [assetReturn.value, btcReturn] as const;
+    })
+    .filter((pair): pair is readonly [number, number] => Boolean(pair))
+    .slice(-windowReturns);
+
+  if (pairedReturns.length < minimumPairedCorrelationReturns) return null;
+
+  const assetValues = pairedReturns.map(([assetReturn]) => assetReturn);
+  const btcValues = pairedReturns.map(([, btcReturn]) => btcReturn);
+  const coefficient = pearson(assetValues, btcValues);
+  if (coefficient === null) return null;
+
+  return round(coefficient * 100);
+}
+
 function estimateVolumeChange(candles: OhlcvCandle[], lookback: number) {
   const recent = candles.slice(-lookback);
   const previous = candles.slice(-lookback * 2, -lookback);
@@ -73,6 +103,41 @@ function estimateVolumeChange(candles: OhlcvCandle[], lookback: number) {
   const previousVolume = previous.reduce((sum, candle) => sum + candle.volume, 0);
   if (previousVolume === 0) return 0;
   return round(((recentVolume - previousVolume) / previousVolume) * 100);
+}
+
+function buildReturnsByCloseTime(candles: OhlcvCandle[]) {
+  const sorted = [...candles].sort((first, second) => first.openTime.localeCompare(second.openTime));
+  return sorted.slice(1).map((candle, index) => {
+    const priorClose = sorted[index].close;
+    const value = priorClose > 0 && candle.close > 0 ? Math.log(candle.close / priorClose) : 0;
+    return {
+      closeTime: candle.closeTime,
+      value
+    };
+  });
+}
+
+function pearson(firstValues: number[], secondValues: number[]) {
+  if (firstValues.length !== secondValues.length || firstValues.length === 0) return null;
+
+  const firstAverage = firstValues.reduce((sum, value) => sum + value, 0) / firstValues.length;
+  const secondAverage = secondValues.reduce((sum, value) => sum + value, 0) / secondValues.length;
+  let numerator = 0;
+  let firstVariance = 0;
+  let secondVariance = 0;
+
+  for (let index = 0; index < firstValues.length; index += 1) {
+    const firstDelta = firstValues[index] - firstAverage;
+    const secondDelta = secondValues[index] - secondAverage;
+    numerator += firstDelta * secondDelta;
+    firstVariance += firstDelta ** 2;
+    secondVariance += secondDelta ** 2;
+  }
+
+  const denominator = Math.sqrt(firstVariance * secondVariance);
+  if (denominator === 0) return null;
+
+  return numerator / denominator;
 }
 
 export function round(value: number) {

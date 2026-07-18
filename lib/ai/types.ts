@@ -73,6 +73,14 @@ export type AiMarketContext = {
   filterState: NonNullable<AiContextRequest["filters"]>;
   sort: NonNullable<AiContextRequest["sort"]>;
   marketBreadth: MarketSnapshot["breadth"];
+  btcCorrelation: {
+    benchmark: "BTC";
+    scale: "-100 to +100";
+    method: "Pearson close-to-close log returns";
+    windowReturns: 60;
+    minimumPairedReturns: 30;
+    note: string;
+  };
   multiTimeframeRules: {
     regime4h: {
       bullish: string;
@@ -126,6 +134,7 @@ export type AiMarketContext = {
     rsi30m: number;
     ma111: number;
     maDistancePct: number;
+    btcCorrelationScore: number | null;
     regime4h: string;
     recommendation30m: string;
     volumeChange24h: number;

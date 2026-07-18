@@ -1,4 +1,5 @@
 import {
+  calculateBtcCorrelationScore,
   getBtcGatedRecommendation30mFromValues,
   getRegime4hFromValues,
   deriveIndicatorValues,
@@ -217,6 +218,7 @@ function buildAssetsForTimeframe(
 ) {
   const mock30mBySymbol = new Map(mock30mAssets.map((asset) => [asset.symbol, asset]));
   const btcRegime4h = getBtcRegime4h(candles4hBySymbol);
+  const correlationScores = buildBtcCorrelationScores(timeframe === "4h" ? candles4hBySymbol : candles30mBySymbol);
 
   return universeAssets.map((universeAsset) => {
     const knownAsset = mock30mBySymbol.get(universeAsset.symbol);
@@ -237,6 +239,7 @@ function buildAssetsForTimeframe(
       ...fallbackAsset,
       timeframe,
       price: activeIndicator.price,
+      btcCorrelationScore: correlationScores.get(universeAsset.symbol) ?? null,
       priceChange24h: activeIndicator.priceChange24h,
       volumeChange24h: activeIndicator.volumeChange24h,
       rsi14: activeIndicator.rsi14,
@@ -255,6 +258,18 @@ function buildAssetsForTimeframe(
       updatedAt: latestActiveCandle?.closeTime || universeAsset.updatedAt
     } satisfies MarketAssetSnapshot;
   });
+}
+
+function buildBtcCorrelationScores(candlesBySymbol: CandleMap) {
+  const btcCandles = candlesBySymbol.get("BTC") || [];
+  const scores = new Map<string, number | null>();
+  if (btcCandles.length < 2) return scores;
+
+  for (const [symbol, candles] of candlesBySymbol.entries()) {
+    scores.set(symbol, symbol === "BTC" ? 100 : calculateBtcCorrelationScore(candles, btcCandles));
+  }
+
+  return scores;
 }
 
 function getBtcRegime4h(candles4hBySymbol: CandleMap): MarketAssetSnapshot["regime4h"] {
@@ -346,6 +361,7 @@ function buildFallbackAsset(universeAsset: BinanceUniverseAsset, knownAsset?: Ma
     source: "binance",
     timeframe: "30m",
     price: universeAsset.lastPrice,
+    btcCorrelationScore: null,
     priceChange24h: round(universeAsset.priceChange24h),
     volumeChange24h: 0,
     rsi14: 50,

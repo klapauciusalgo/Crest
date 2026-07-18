@@ -32,6 +32,7 @@ export type TradeRecommendation30m = "Long/Buy" | "Short/Sell" | "Wait";
 export type AssetSignalRow = AssetRow & {
   regime4h: Regime4h;
   recommendation30m: TradeRecommendation30m;
+  btcCorrelationScore: number | null;
   price4h: number;
   ma1114h: number;
   maDistance4hPct: number;
@@ -181,6 +182,7 @@ export function enrichAssetsWithSignals(
       ...asset,
       regime4h,
       recommendation30m,
+      btcCorrelationScore: getMockBtcCorrelationScore(asset.symbol),
       price4h: asset4h.price,
       ma1114h: asset4h.ma111,
       maDistance4hPct: asset4h.maDistancePct,
@@ -189,6 +191,12 @@ export function enrichAssetsWithSignals(
       signalReason: getSignalReason(asset4h, asset30m, regime4h, recommendation30m, btcRegime4h)
     };
   });
+}
+
+function getMockBtcCorrelationScore(symbol: string) {
+  if (symbol === "BTC") return 100;
+  const seed = symbol.split("").reduce((sum, char, index) => sum + char.charCodeAt(0) * (index + 3), 0);
+  return clamp(round(28 + (seed % 72) - (seed % 5) * 8), -100, 100);
 }
 
 export function getRegime4h(asset: AssetRow): Regime4h {

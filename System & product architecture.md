@@ -6,7 +6,7 @@ CORE DATA SYSTEM
 - OHLCV source: Binance klines, with per-asset coverage status for incomplete candle history
 - Sector/category source: curated internal metadata where available, with unknown assets grouped as Unclassified and provider adapters kept replaceable
 - Normalize sectors into internal labels such as DeFi, AI, CEX, DEX, Perps, Meme, Yield, Infra, and Layer 1
-- Compute server-side: RSI(14), MA111, volume delta 24h, price delta 24h
+- Compute server-side: RSI(14), MA111, volume delta 24h, price delta 24h, and BTC correlation score
 - Store computed indicators in Supabase Postgres market snapshot rows, refreshed after candle close per timeframe
 - Refresh 30m snapshots every 30 minutes and 4h snapshots every 4 hours, with last update timestamps exposed to the UI
 - Support two timeframes: 30 minutes (30m) and 4 hours (4h), switchable without page reload
@@ -21,6 +21,7 @@ DATA COLUMNS PER ASSET
 6. Sector tags (DeFi, AI, CEX, DEX, Perps, Meme, Yield, Infra, Layer 1)
 7. MA111 value
 8. Distance from MA111 in % = ((Price - MA111) / MA111) × 100
+9. BTC correlation score (-100 to +100) for the selected timeframe, sortable and shown as unavailable when paired candle history is insufficient
 
 CHAIN PERFORMANCE GROUPING
 - Group all 300 assets by their native chain
@@ -53,7 +54,7 @@ Both methods produce a unified user session with role: "user" | "admin"
 
 AI ASSISTANT SYSTEM
 - Inject current visible data snapshot (filtered grid state as JSON) into every AI request as context
-- Include all data required for current terminal analysis in the context packet: filter state, sort state, visible assets, chain summaries, sector summaries, inspected chain details, inspected sector details, pinned assets, timeframe, and active preset
+- Include all data required for current terminal analysis in the context packet: filter state, sort state, visible assets, chain summaries, sector summaries, inspected chain details, inspected sector details, pinned assets, timeframe, active preset, and BTC correlation score metadata
 - Streaming responses via SSE from Vercel route handlers
 - Session history per user (last 20 messages) stored in Supabase Postgres
 - User can "pin" up to 5 assets — always injected into AI context

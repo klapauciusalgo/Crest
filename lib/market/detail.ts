@@ -39,6 +39,7 @@ type SnapshotRecord = {
   rsi_14: string | number;
   ma_111: string | number;
   ma_distance_pct: string | number;
+  btc_correlation_score: string | number | null;
   regime_4h: string;
   recommendation_30m: string;
   price_4h: string | number;
@@ -190,6 +191,7 @@ function getSnapshotSelect() {
     rsi_14,
     ma_111,
     ma_distance_pct,
+    btc_correlation_score,
     regime_4h,
     recommendation_30m,
     price_4h,
@@ -251,6 +253,7 @@ function mapAssetSnapshot(asset: DetailAssetRecord, row: SnapshotRecord, timefra
     rsi14: toNumber(row.rsi_14),
     ma111: toNumber(row.ma_111),
     maDistancePct: toNumber(row.ma_distance_pct),
+    btcCorrelationScore: toNullableNumber(row.btc_correlation_score),
     regime4h: toRegime(row.regime_4h),
     recommendation30m: toRecommendation(row.recommendation_30m),
     price4h: toNumber(row.price_4h),
@@ -273,6 +276,7 @@ function mapHistoryPoint(row: SnapshotRecord, timeframe: Timeframe): MarketSnaps
     rsi14: toNumber(row.rsi_14),
     ma111: toNumber(row.ma_111),
     maDistancePct: toNumber(row.ma_distance_pct),
+    btcCorrelationScore: toNullableNumber(row.btc_correlation_score),
     regime4h: toRegime(row.regime_4h),
     recommendation30m: toRecommendation(row.recommendation_30m),
     price4h: toNumber(row.price_4h),
@@ -350,6 +354,7 @@ function deriveHistoryFromCandles(
         rsi14: indicator.rsi14,
         ma111: indicator.ma111,
         maDistancePct: indicator.maDistancePct,
+        btcCorrelationScore: latestSnapshot.btcCorrelationScore,
         regime4h,
         recommendation30m,
         price4h: timeframe === "4h" ? indicator.price : latestSnapshot.price4h,
@@ -441,6 +446,12 @@ function toNumber(value: unknown) {
   if (typeof value === "number") return value;
   if (typeof value === "string") return Number(value);
   return 0;
+}
+
+function toNullableNumber(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = toNumber(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function toTimeframe(value: string): Timeframe {

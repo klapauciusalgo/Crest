@@ -12,6 +12,7 @@ type MarketSnapshotRow = {
   rsi_14: number;
   ma_111: number;
   ma_distance_pct: number;
+  btc_correlation_score: number | null;
   regime_4h: MarketAssetSnapshot["regime4h"];
   recommendation_30m: MarketAssetSnapshot["recommendation30m"];
   price_4h: number;
@@ -192,6 +193,7 @@ function buildMarketSnapshotRows(snapshot: MarketSnapshot, assetIdMap: AssetIdMa
       rsi_14: asset.rsi14,
       ma_111: asset.ma111,
       ma_distance_pct: asset.maDistancePct,
+      btc_correlation_score: asset.btcCorrelationScore,
       regime_4h: asset.regime4h,
       recommendation_30m: asset.recommendation30m,
       price_4h: asset.price4h,

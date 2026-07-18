@@ -50,6 +50,7 @@ export type IndicatorSnapshot = {
 
 export type MarketAssetSnapshot = MarketUniverseAsset &
   IndicatorSnapshot & {
+    btcCorrelationScore: number | null;
     price4h: number;
     ma1114h: number;
     maDistance4hPct: number;
@@ -113,6 +114,7 @@ export type MarketSnapshotHistoryPoint = Pick<
   maDistance4hPct: number;
   rsi4h: number;
   rsi30m: number;
+  btcCorrelationScore: number | null;
   signalReason: string;
   candleCloseAt: string;
   computedAt: string;

@@ -92,6 +92,7 @@ type SortKey = keyof Pick<
   | "chain"
   | "ma111"
   | "maDistancePct"
+  | "btcCorrelationScore"
   | "regime4h"
   | "recommendation30m"
 >;
@@ -230,7 +231,8 @@ const baseColumns: GridColumn[] = [
   { key: "quoteVolume24h", label: "24h Vol" },
   { key: "chain", label: "Chain" },
   { key: "ma111", label: "MA111" },
-  { key: "maDistancePct", label: "MA Dist." }
+  { key: "maDistancePct", label: "MA Dist." },
+  { key: "btcCorrelationScore", label: "BTC Corr." }
 ];
 
 function getGridColumns(timeframe: Timeframe): GridColumn[] {
@@ -1460,6 +1462,7 @@ function AssetGrid({
             <col className="col-chain" />
             <col className="col-price" />
             <col className="col-change" />
+            <col className="col-correlation" />
             <col className="col-signal" />
           </colgroup>
           <thead>
@@ -1519,6 +1522,9 @@ function AssetGrid({
                   </td>
                   <td data-label="MA111">{formatPrice(asset.ma111)}</td>
                   <td data-label="MA dist." className={asset.maDistancePct >= 0 ? "positive" : "negative"}>{formatPct(asset.maDistancePct)}</td>
+                  <td data-label="BTC corr." className={getCorrelationClass(asset.btcCorrelationScore)}>
+                    {formatCorrelationScore(asset.btcCorrelationScore)}
+                  </td>
                   <td data-label={timeframe === "4h" ? "Regime" : "Setup"} title={asset.signalReason}>
                     <span className="signal-cell">
                       {timeframe === "4h" ? (
@@ -1669,6 +1675,13 @@ function AiDrawer({
         data_status: context.dataStatus,
         btc_regime_4h: context.btcRegime4h,
         rank_basis: context.dataStatus.rankBasis,
+        btc_correlation: {
+          benchmark: "BTC",
+          scale: "-100 to +100",
+          method: "Pearson close-to-close log returns",
+          windowReturns: 60,
+          minimumPairedReturns: 30
+        },
         multi_timeframe_rules: multiTimeframeRules,
         visible_rows_focus: context.visibleAssets.length,
         pinned_assets: context.pinnedAssets
@@ -2297,6 +2310,7 @@ function normalizeApiAsset(asset: AssetSignalRow): AssetSignalRow {
     ...asset,
     chain: normalizeChain(asset.chain),
     sectors: asset.sectors.map(normalizeSector),
+    btcCorrelationScore: normalizeCorrelationScore(asset.btcCorrelationScore),
     rankBasis: asset.rankBasis || "mock",
     quoteVolume24h: asset.quoteVolume24h || 0,
     tradeCount24h: asset.tradeCount24h || 0,
@@ -2528,6 +2542,23 @@ function formatBreadthMetric(count: number, label: string) {
   return `${count} ${label}`;
 }
 
+function formatCorrelationScore(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(2) : "--";
+}
+
+function getCorrelationClass(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "";
+  if (value >= 50) return "positive";
+  if (value <= -50) return "negative";
+  return "";
+}
+
+function normalizeCorrelationScore(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function getChainColor(chain: ChainKey | string) {
   return chainColors[chain] || chainColors.Unclassified;
 }
@@ -2658,6 +2689,18 @@ function sortRows(rows: AssetSignalRow[], key: SortKey, direction: SortDirection
   }
 
   return [...rows].sort((a, b) => {
+    if (key === "btcCorrelationScore") {
+      const firstScore = a.btcCorrelationScore;
+      const secondScore = b.btcCorrelationScore;
+      const firstMissing = typeof firstScore !== "number" || !Number.isFinite(firstScore);
+      const secondMissing = typeof secondScore !== "number" || !Number.isFinite(secondScore);
+      if (firstMissing || secondMissing) {
+        if (firstMissing === secondMissing) return 0;
+        return firstMissing ? 1 : -1;
+      }
+      return direction === "asc" ? firstScore - secondScore : secondScore - firstScore;
+    }
+
     const first = a[key];
     const second = b[key];
     const result =

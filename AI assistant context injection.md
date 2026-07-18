@@ -20,6 +20,14 @@ CONTEXT FORMAT (injected automatically per request)
     { "range": "Top 200", "metricKind": "regime", "averageRsi": 54.1, "positiveLabel": "Bullish", "positiveCount": 74, "negativeLabel": "Bearish", "negativeCount": 82, "neutralLabel": "Neutral", "neutralCount": 44, "positivePct": 37, "negativePct": 41 },
     { "range": "Top 300", "metricKind": "regime", "averageRsi": 50.2, "positiveLabel": "Bullish", "positiveCount": 93, "negativeLabel": "Bearish", "negativeCount": 138, "neutralLabel": "Neutral", "neutralCount": 69, "positivePct": 31, "negativePct": 46 }
   ],
+  "btc_correlation": {
+    "benchmark": "BTC",
+    "scale": "-100 to +100",
+    "method": "Pearson close-to-close log returns",
+    "windowReturns": 60,
+    "minimumPairedReturns": 30,
+    "note": "Calculated per selected timeframe against BTC candles aligned by candle close time. Null means insufficient paired returns or zero variance."
+  },
   "multi_timeframe_rules": {
     "regime_4h": {
       "bullish": "price > MA111 and RSI > 55",
@@ -35,7 +43,7 @@ CONTEXT FORMAT (injected automatically per request)
   },
   "signal_summary": { "bullish": 6, "bearish": 5, "neutral": 9, "longBuy": 1, "shortSell": 0, "wait": 19 },
   "visible_assets": [
-    { "symbol": "BNB", "price": 412.5, "price_change_24h": -2.1, "rsi_14": 28.3, "volume_change_24h": +15.2, "chain": "BSC", "sectors": ["Layer 1", "CEX"], "ma111": 440.0, "ma_distance_pct": -6.25, "regime_4h": "Bearish", "rsi_30m": 31.8, "recommendation_30m": "Wait", "signal_reason": "BTC 4h bullish; waiting for 30m RSI below 35. Asset 4h regime is bearish." },
+    { "symbol": "BNB", "price": 412.5, "price_change_24h": -2.1, "rsi_14": 28.3, "volume_change_24h": +15.2, "chain": "BSC", "sectors": ["Layer 1", "CEX"], "ma111": 440.0, "ma_distance_pct": -6.25, "btc_correlation_score": 82.4, "regime_4h": "Bearish", "rsi_30m": 31.8, "recommendation_30m": "Wait", "signal_reason": "BTC 4h bullish; waiting for 30m RSI below 35. Asset 4h regime is bearish." },
     ...up to 50 rows max
   ],
   "chain_summary": {
