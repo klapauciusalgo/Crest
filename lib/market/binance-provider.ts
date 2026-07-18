@@ -188,8 +188,10 @@ async function fetchBinanceCandles(symbol: string, marketSymbol: string, timefra
   const rows = await fetchKlineRows(marketSymbol, timeframe);
   if (!Array.isArray(rows)) return [];
 
+  const now = Date.now();
+
   return rows
-    .filter((row): row is unknown[] => Array.isArray(row) && row.length >= 6)
+    .filter((row): row is unknown[] => Array.isArray(row) && row.length >= 7 && Number(row[6]) <= now)
     .map((row) => ({
       symbol,
       timeframe,

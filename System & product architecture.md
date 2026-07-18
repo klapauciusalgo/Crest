@@ -6,7 +6,7 @@ CORE DATA SYSTEM
 - OHLCV source: Binance klines, with per-asset coverage status for incomplete candle history
 - Sector/category source: curated internal metadata where available, with unknown assets grouped as Unclassified and provider adapters kept replaceable
 - Normalize sectors into internal labels such as DeFi, AI, CEX, DEX, Perps, Meme, Yield, Infra, and Layer 1
-- Compute server-side: RSI(14), MA111, volume delta 24h, price delta 24h, and BTC correlation score
+- Compute server-side: RSI(14) using Wilder/RMA smoothing on closed candles, MA111, volume delta 24h, price delta 24h, and BTC correlation score
 - Store computed indicators in Supabase Postgres market snapshot rows, refreshed after candle close per timeframe
 - Refresh 30m snapshots every 30 minutes and 4h snapshots every 4 hours, with last update timestamps exposed to the UI
 - Support two timeframes: 30 minutes (30m) and 4 hours (4h), switchable without page reload

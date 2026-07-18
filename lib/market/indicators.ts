@@ -14,13 +14,25 @@ export function calculateRsi(values: number[], length = 14) {
   if (values.length <= length) return 50;
 
   const deltas = values.slice(1).map((value, index) => value - values[index]);
-  const recent = deltas.slice(-length);
-  const gains = recent.map((value) => Math.max(value, 0));
-  const losses = recent.map((value) => Math.abs(Math.min(value, 0)));
-  const averageGain = gains.reduce((sum, value) => sum + value, 0) / length;
-  const averageLoss = losses.reduce((sum, value) => sum + value, 0) / length;
+  let averageGain = 0;
+  let averageLoss = 0;
 
+  for (let index = 0; index < length; index += 1) {
+    averageGain += Math.max(deltas[index], 0);
+    averageLoss += Math.abs(Math.min(deltas[index], 0));
+  }
+
+  averageGain /= length;
+  averageLoss /= length;
+
+  for (let index = length; index < deltas.length; index += 1) {
+    averageGain = (averageGain * (length - 1) + Math.max(deltas[index], 0)) / length;
+    averageLoss = (averageLoss * (length - 1) + Math.abs(Math.min(deltas[index], 0))) / length;
+  }
+
+  if (averageGain === 0 && averageLoss === 0) return 50;
   if (averageLoss === 0) return 100;
+  if (averageGain === 0) return 0;
 
   const relativeStrength = averageGain / averageLoss;
   return round(100 - 100 / (1 + relativeStrength));
