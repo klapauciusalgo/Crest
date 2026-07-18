@@ -252,7 +252,7 @@ const multiTimeframeRules = {
   },
   recommendation_30m: {
     global_gate: "BTC 4h regime controls directional setup side",
-    long_buy: "BTC 4h Bullish and asset 30m RSI < 35",
+    long_buy: "BTC 4h Bullish and asset 30m RSI < 30",
     short_sell: "BTC 4h Bearish and asset 30m RSI > 70",
     wait: "BTC 4h Neutral, missing BTC data, or all other conditions"
   }

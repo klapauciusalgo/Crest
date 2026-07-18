@@ -316,9 +316,9 @@ function getSignalReason(
 ) {
   if (coverageStatus === "fetch_failed") return "Binance pair is in the volume universe, but candle fetch did not return enough history yet.";
   if (coverageStatus === "partial") return "Binance candle coverage is partial; setup uses available data with BTC 4h regime as the global gate.";
-  if (recommendation30m === "Long/Buy") return `BTC 4h bullish; Binance 30m RSI ${indicator30m.rsi14.toFixed(1)} is below 35.`;
+  if (recommendation30m === "Long/Buy") return `BTC 4h bullish; Binance 30m RSI ${indicator30m.rsi14.toFixed(1)} is below 30.`;
   if (recommendation30m === "Short/Sell") return `BTC 4h bearish; Binance 30m RSI ${indicator30m.rsi14.toFixed(1)} is above 70.`;
-  if (btcRegime4h === "Bullish") return "BTC 4h bullish; waiting for 30m RSI below 35.";
+  if (btcRegime4h === "Bullish") return "BTC 4h bullish; waiting for 30m RSI below 30.";
   if (btcRegime4h === "Bearish") return "BTC 4h bearish; waiting for 30m RSI above 70.";
   return `BTC 4h neutral; directional 30m setups paused. Asset 4h regime is ${regime4h.toLowerCase()} with price ${indicator4h.price.toFixed(4)} vs MA111 ${indicator4h.ma111.toFixed(4)}.`;
 }

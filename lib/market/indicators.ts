@@ -33,7 +33,7 @@ export function getRegime4hFromValues(price: number, ma111: number, rsi14: numbe
 }
 
 export function getRecommendation30mFromValues(rsi30m: number, regime4h: Regime4h): TradeRecommendation30m {
-  if (regime4h === "Bullish" && rsi30m < 35) return "Long/Buy";
+  if (regime4h === "Bullish" && rsi30m < 30) return "Long/Buy";
   if (regime4h === "Bearish" && rsi30m > 70) return "Short/Sell";
   return "Wait";
 }
@@ -42,7 +42,7 @@ export function getBtcGatedRecommendation30mFromValues(
   rsi30m: number,
   btcRegime4h: Regime4h
 ): TradeRecommendation30m {
-  if (btcRegime4h === "Bullish" && rsi30m < 35) return "Long/Buy";
+  if (btcRegime4h === "Bullish" && rsi30m < 30) return "Long/Buy";
   if (btcRegime4h === "Bearish" && rsi30m > 70) return "Short/Sell";
   return "Wait";
 }

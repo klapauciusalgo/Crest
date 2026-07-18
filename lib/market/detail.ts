@@ -425,7 +425,7 @@ function getDerivedSignalReason(
   recommendation30m: TradeRecommendation30m,
   rsi14: number
 ) {
-  if (timeframe === "30m" && recommendation30m === "Long/Buy") return `Derived 30m setup: BTC 4h bullish and RSI ${rsi14.toFixed(1)} below 35.`;
+  if (timeframe === "30m" && recommendation30m === "Long/Buy") return `Derived 30m setup: BTC 4h bullish and RSI ${rsi14.toFixed(1)} below 30.`;
   if (timeframe === "30m" && recommendation30m === "Short/Sell") return `Derived 30m setup: BTC 4h bearish and RSI ${rsi14.toFixed(1)} above 70.`;
   return `Derived ${timeframe} history point with ${regime4h.toLowerCase()} regime context.`;
 }

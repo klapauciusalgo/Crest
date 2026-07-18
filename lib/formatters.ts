@@ -1,4 +1,7 @@
 export function formatPrice(price: number) {
+  if (!Number.isFinite(price)) return "$0.00";
+  if (price <= 0) return "$0.00";
+
   if (price >= 1000) {
     return `$${price.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
   }
@@ -7,7 +10,20 @@ export function formatPrice(price: number) {
     return `$${price.toFixed(2)}`;
   }
 
-  return `$${price.toFixed(4)}`;
+  if (price >= 0.01) {
+    return `$${price.toFixed(4)}`;
+  }
+
+  if (price >= 0.00001) {
+    return `$${price.toFixed(6)}`;
+  }
+
+  if (price > 0) {
+    if (price < 0.00000001) return "<$0.00000001";
+    return `$${price.toFixed(8)}`;
+  }
+
+  return "$0.00";
 }
 
 export function formatPct(value: number) {

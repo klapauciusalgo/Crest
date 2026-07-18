@@ -210,7 +210,7 @@ function getBtcRegime4h(asset: AssetRow | undefined): Regime4h {
 }
 
 export function getRecommendation30m(asset30m: AssetRow, regime4h: Regime4h): TradeRecommendation30m {
-  if (regime4h === "Bullish" && asset30m.rsi14 < 35) return "Long/Buy";
+  if (regime4h === "Bullish" && asset30m.rsi14 < 30) return "Long/Buy";
   if (regime4h === "Bearish" && asset30m.rsi14 > 70) return "Short/Sell";
   return "Wait";
 }
@@ -331,7 +331,7 @@ export const aiPresetResponses: Record<string, string> = {
   ma:
     "$CAKE, $PENDLE, and $ETH are near MA111 support. $CAKE is closest to the -5.00% breakdown band and has the strongest volume confirmation.\n\n> **Next:** \"which MA111 support names have RSI below 40?\"",
   setup:
-    "Use BTC 4h regime as the global market gate, then the asset 30m RSI trigger. Long/Buy only appears when BTC 4h is bullish and asset 30m RSI is below 35. Short/Sell only appears when BTC 4h is bearish and asset 30m RSI is above 70.\n\n> **Next:** \"show actionable 30m setups by chain\""
+    "Use BTC 4h regime as the global market gate, then the asset 30m RSI trigger. Long/Buy only appears when BTC 4h is bullish and asset 30m RSI is below 30. Short/Sell only appears when BTC 4h is bearish and asset 30m RSI is above 70.\n\n> **Next:** \"show actionable 30m setups by chain\""
 };
 
 export const providerConfigs: ProviderConfig[] = [
@@ -361,7 +361,7 @@ function getSignalReason(
   btcRegime4h: Regime4h
 ) {
   if (recommendation30m === "Long/Buy") {
-    return `BTC 4h bullish; 30m RSI ${asset30m.rsi14.toFixed(1)} is below the 35 long trigger.`;
+    return `BTC 4h bullish; 30m RSI ${asset30m.rsi14.toFixed(1)} is below the 30 long trigger.`;
   }
 
   if (recommendation30m === "Short/Sell") {
@@ -369,7 +369,7 @@ function getSignalReason(
   }
 
   if (btcRegime4h === "Bullish") {
-    return `BTC 4h bullish; waiting for 30m RSI below 35. Asset 4h regime is ${regime4h.toLowerCase()}.`;
+    return `BTC 4h bullish; waiting for 30m RSI below 30. Asset 4h regime is ${regime4h.toLowerCase()}.`;
   }
 
   if (btcRegime4h === "Bearish") {

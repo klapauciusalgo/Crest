@@ -44,7 +44,7 @@ export async function buildAiMarketContext(input: AiContextRequest): Promise<AiM
       },
       recommendation30m: {
         globalGate: `BTC 4h regime is ${btcRegime4h}`,
-        longBuy: "BTC 4h Bullish and asset 30m RSI < 35",
+        longBuy: "BTC 4h Bullish and asset 30m RSI < 30",
         shortSell: "BTC 4h Bearish and asset 30m RSI > 70",
         wait: "BTC 4h Neutral, missing BTC data, or all other conditions"
       }
