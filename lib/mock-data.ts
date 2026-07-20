@@ -1,3 +1,5 @@
+import type { TradingVenueAvailability } from "@/lib/market/venue-types";
+
 export type Timeframe = "30m" | "4h";
 
 export type ChainKey = string;
@@ -48,6 +50,7 @@ export type AssetSignalRow = AssetRow & {
   blacklistStatus?: "allowed" | "excluded" | "unknown";
   source?: string;
   coverageStatus?: string;
+  venueAvailability?: TradingVenueAvailability[];
 };
 
 export type ChainProjectDetail = AssetSignalRow & {

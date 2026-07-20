@@ -23,6 +23,7 @@ import {
 import type { Timeframe } from "@/lib/mock-data";
 import type { MarketAssetDetail, MarketCandlePoint, MarketSnapshotHistoryPoint } from "@/lib/market/types";
 import { formatPct, formatPrice } from "@/lib/formatters";
+import { VenueMarketList } from "@/components/venue-availability";
 
 type CrosshairSnapshot = {
   time: string;
@@ -75,6 +76,7 @@ export function AssetDetailPage({
               <span key={sector}>{sector}</span>
             ))}
           </div>
+          <VenueMarketList venues={detail.asset.venueAvailability} />
         </div>
 
         <div className="asset-stat-strip" aria-label="Latest market state">

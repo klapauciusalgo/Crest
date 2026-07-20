@@ -1,4 +1,5 @@
 import type { ChainKey, Regime4h, SectorKey, Timeframe, TradeRecommendation30m } from "@/lib/mock-data";
+import type { TradingVenueAvailability } from "@/lib/market/venue-types";
 
 export type AssetCoverageStatus = "covered" | "missing_pair" | "fetch_failed" | "partial";
 export type MarketDataSource = "mock" | "coinmarketcap" | "binance" | "hybrid";
@@ -16,6 +17,7 @@ export type MarketUniverseAsset = {
   blacklistStatus: "allowed" | "excluded" | "unknown";
   chain: ChainKey | string;
   sectors: Array<SectorKey | string>;
+  venueAvailability: TradingVenueAvailability[];
   source: MarketDataSource;
 };
 

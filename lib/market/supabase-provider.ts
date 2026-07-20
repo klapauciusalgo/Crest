@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Timeframe } from "@/lib/mock-data";
 import { buildTimeframeBreadth, withBreadthSemantics } from "@/lib/market/breadth";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { mapVenueAvailability, type ExchangePairRecord } from "@/lib/market/venue-mapping";
 import type {
   AssetCoverageStatus,
   MarketAssetSnapshot,
@@ -24,6 +25,7 @@ type MarketAssetRecord = {
   sectors: string[] | null;
   source: string;
   metadata: Record<string, unknown> | null;
+  asset_exchange_pairs?: ExchangePairRecord[] | null;
 };
 
 type MarketSnapshotRecord = {
@@ -170,7 +172,16 @@ async function readAssetSnapshots(client: SupabaseClient, timeframe: Timeframe) 
           chain,
           sectors,
           source,
-          metadata
+          metadata,
+          asset_exchange_pairs (
+            exchange,
+            market_type,
+            base_symbol,
+            quote_symbol,
+            market_symbol,
+            status,
+            last_checked_at
+          )
         )
       `
     )
@@ -209,6 +220,7 @@ function mapAssetSnapshot(row: MarketSnapshotRecord): MarketAssetSnapshot {
     blacklistStatus: toBlacklistStatus(asset.metadata?.blacklist_status),
     chain: asset.chain,
     sectors: asset.sectors || [],
+    venueAvailability: mapVenueAvailability(asset.asset_exchange_pairs),
     source: toMarketDataSource(row.source || asset.source),
     timeframe: toTimeframe(row.timeframe),
     price: toNumber(row.price),

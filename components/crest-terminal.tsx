@@ -31,6 +31,7 @@ import {
 import type { User } from "@supabase/supabase-js";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CrestAuthProfile } from "@/lib/auth/profile";
+import { VenueBadges } from "@/components/venue-availability";
 import { formatCompactDollar, formatPct, formatPrice } from "@/lib/formatters";
 import type { AiChatResponse, AiMarketContext, AiProviderConfig, AiSettings, AiUsageQuota } from "@/lib/ai/types";
 import {
@@ -1503,10 +1504,13 @@ function AssetGrid({
                     </button>
                   </td>
                   <td className="asset-cell" data-label="Asset">
-                    <Link className="asset-link" href={`/assets/${asset.symbol}?timeframe=${timeframe}`}>
-                      <strong>${asset.symbol}</strong>
-                      <span>{asset.name}</span>
-                    </Link>
+                    <div className="asset-identity">
+                      <Link className="asset-link" href={`/assets/${asset.symbol}?timeframe=${timeframe}`}>
+                        <strong>${asset.symbol}</strong>
+                        <span>{asset.name}</span>
+                      </Link>
+                      <VenueBadges venues={asset.venueAvailability || []} />
+                    </div>
                   </td>
                   <td data-label="Price">{formatPrice(asset.price)}</td>
                   <td data-label="24h" className={asset.priceChange24h >= 0 ? "positive" : "negative"}>{formatPct(asset.priceChange24h)}</td>
@@ -2310,6 +2314,7 @@ function normalizeApiAsset(asset: AssetSignalRow): AssetSignalRow {
     ...asset,
     chain: normalizeChain(asset.chain),
     sectors: asset.sectors.map(normalizeSector),
+    venueAvailability: asset.venueAvailability || [],
     btcCorrelationScore: normalizeCorrelationScore(asset.btcCorrelationScore),
     rankBasis: asset.rankBasis || "mock",
     quoteVolume24h: asset.quoteVolume24h || 0,

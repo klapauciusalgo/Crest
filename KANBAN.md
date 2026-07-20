@@ -72,6 +72,8 @@
 - [x] Telegram notification sender implemented behind server-only environment variables.
 - [x] Market refresh cron integrated with non-fatal Telegram alert delivery.
 - [x] Lightweight Telegram alert cron endpoint added as a post-refresh safety path.
+- [x] Binance and Hyperliquid Spot/Perpetual venue availability added with strict symbol identity mapping.
+- [x] Venue availability persisted in Supabase and exposed to terminal, mobile asset cards, detail pages, and AI context.
 
 ## In Progress
 

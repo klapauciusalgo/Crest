@@ -16,6 +16,12 @@ Crest turns live market snapshots into a disciplined terminal for regime trackin
 
 Crest calculates a per-asset BTC correlation score for both 30m and 4h snapshots. The score uses Pearson correlation on the last 60 aligned close-to-close log returns against BTC candles, scaled from -100 to +100. BTC itself is always +100. Assets with fewer than 30 paired returns show an unavailable score until enough candles are stored.
 
+## Trading Venue Availability
+
+Crest shows where each Binance Top 300 asset can be traded. Binance remains the sole source for universe ranking, OHLCV, indicators, breadth, regimes, and setups. Venue metadata initially covers Binance Spot and Hyperliquid Spot/Perpetual markets. Hyperliquid symbols are matched through exact symbols or a curated alias registry for verified wrappers and scaled contracts; fuzzy symbol matching is not allowed.
+
+Venue discovery runs with market ingestion, stores the last verified listings in Supabase `asset_exchange_pairs`, and never blocks Binance refresh when an external venue is unavailable. The terminal shows compact venue markers, while asset detail exposes market type and native pair symbols.
+
 ## Telegram Alerts
 
 Crest sends a scheduled Telegram market alert every 30 minutes after the latest 30m Binance snapshot refresh completes. The alert summarizes actionable 30m setups gated by the latest BTC 4h regime and includes Top 100, Top 200, and Top 300 volume breadth using 30m labels: Long/Buy, Short/Sell, and Wait. A lightweight alert-only cron endpoint runs after the data refresh as a safety path, with bucket-based duplicate protection to avoid double messages.

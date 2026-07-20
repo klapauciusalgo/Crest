@@ -34,6 +34,21 @@ export function getMockMarketSnapshot(timeframe: Timeframe): MarketSnapshot {
     quoteVolume24h: 0,
     tradeCount24h: 0,
     blacklistStatus: "allowed",
+    venueAvailability: [
+      {
+        venue: "binance",
+        markets: [
+          {
+            marketType: "spot",
+            marketSymbol: `${asset.symbol}USDT`,
+            baseSymbol: asset.symbol,
+            quoteSymbol: "USDT"
+          }
+        ],
+        lastCheckedAt: updatedAt,
+        isStale: false
+      }
+    ],
     source: "mock",
     coverageStatus: "covered",
     updatedAt

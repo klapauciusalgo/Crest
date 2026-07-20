@@ -11,6 +11,15 @@ CORE DATA SYSTEM
 - Refresh 30m snapshots every 30 minutes and 4h snapshots every 4 hours, with last update timestamps exposed to the UI
 - Support two timeframes: 30 minutes (30m) and 4 hours (4h), switchable without page reload
 
+TRADING VENUE AVAILABILITY
+- Keep Binance Spot as the source of truth for the Top 300 volume-ranked universe and all analytical calculations
+- Discover Binance Spot and Hyperliquid Spot/Perpetual availability during market ingestion
+- Read Hyperliquid perpetual metadata from `meta` and spot token/pair metadata from `spotMeta`
+- Match venue symbols through exact identity or an explicit curated alias registry; never use fuzzy or generic prefix stripping
+- Store active and previously missing listings in Supabase `asset_exchange_pairs`, including market type, native market symbol, status, and last verification time
+- Preserve the last verified venue state when Hyperliquid discovery fails; venue discovery must not fail Binance ingestion
+- Expose grouped venue availability to the terminal, asset detail page, and AI context without changing price, indicator, breadth, regime, setup, correlation, or Telegram logic
+
 DATA COLUMNS PER ASSET
 1. Price (USD, real-time)
 2. Price change % in 24h (colored: green positive, red negative)

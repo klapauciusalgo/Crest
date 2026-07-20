@@ -58,6 +58,7 @@ export async function buildAiMarketContext(input: AiContextRequest): Promise<AiM
       name: asset.name,
       chain: asset.chain,
       sectors: asset.sectors,
+      venueAvailability: asset.venueAvailability,
       price: asset.price,
       priceChange24h: asset.priceChange24h,
       rsi14: asset.rsi14,
@@ -97,6 +98,7 @@ export function buildAiMessages({
     "If the user asks for data outside the supplied context, say: That data is not in the latest Crest snapshot.",
     "Always reference assets as $BTC, $ETH, $BNB style tickers.",
     "BTC correlation score is informational, scaled from -100 to +100 against BTC returns for the selected timeframe.",
+    "Venue availability is metadata only. Binance remains the source of ranking, OHLCV, indicators, regimes, setups, and breadth.",
     "Keep responses concise, analyst-grade, and tied to regime/setup/breadth evidence.",
     "Max response length is 300 words unless the user explicitly requests deeper analysis."
   ];

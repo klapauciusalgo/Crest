@@ -358,6 +358,21 @@ function buildFallbackAsset(universeAsset: BinanceUniverseAsset, knownAsset?: Ma
     quoteVolume24h: round(universeAsset.quoteVolume24h),
     tradeCount24h: universeAsset.tradeCount24h,
     blacklistStatus: "allowed",
+    venueAvailability: [
+      {
+        venue: "binance",
+        markets: [
+          {
+            marketType: "spot",
+            marketSymbol: `${universeAsset.symbol}USDT`,
+            baseSymbol: universeAsset.symbol,
+            quoteSymbol: "USDT"
+          }
+        ],
+        lastCheckedAt: universeAsset.updatedAt,
+        isStale: false
+      }
+    ],
     chain: metadata.chain,
     sectors: metadata.sectors,
     source: "binance",

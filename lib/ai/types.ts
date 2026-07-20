@@ -1,5 +1,6 @@
 import type { Timeframe } from "@/lib/mock-data";
 import type { MarketSnapshot } from "@/lib/market/types";
+import type { TradingVenueAvailability } from "@/lib/market/venue-types";
 
 export type AiProviderStatus = "active" | "disabled";
 export type AiProviderType = "openai_compatible";
@@ -127,6 +128,7 @@ export type AiMarketContext = {
     name: string;
     chain: string;
     sectors: string[];
+    venueAvailability: TradingVenueAvailability[];
     price: number;
     priceChange24h: number;
     rsi14: number;

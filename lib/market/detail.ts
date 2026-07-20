@@ -8,6 +8,7 @@ import {
   deriveIndicatorValues
 } from "@/lib/market/indicators";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { mapVenueAvailability, type ExchangePairRecord } from "@/lib/market/venue-mapping";
 import type {
   AssetCoverageStatus,
   MarketAssetDetail,
@@ -30,6 +31,7 @@ type DetailAssetRecord = {
   sectors: string[] | null;
   source: string;
   metadata: Record<string, unknown> | null;
+  asset_exchange_pairs?: ExchangePairRecord[] | null;
 };
 
 type SnapshotRecord = {
@@ -133,7 +135,27 @@ async function readSupabaseAssetDetail(client: SupabaseClient, symbol: string, t
 async function readAsset(client: SupabaseClient, symbol: string) {
   const { data, error } = await client
     .from("market_assets")
-    .select("id, cmc_id, source_asset_id, symbol, name, rank, chain, sectors, source, metadata")
+    .select(`
+      id,
+      cmc_id,
+      source_asset_id,
+      symbol,
+      name,
+      rank,
+      chain,
+      sectors,
+      source,
+      metadata,
+      asset_exchange_pairs (
+        exchange,
+        market_type,
+        base_symbol,
+        quote_symbol,
+        market_symbol,
+        status,
+        last_checked_at
+      )
+    `)
     .eq("source", "binance")
     .or(`symbol.eq.${symbol},source_asset_id.eq.${symbol}`)
     .maybeSingle<DetailAssetRecord>();
@@ -239,6 +261,7 @@ function mapUniverseAsset(asset: DetailAssetRecord): MarketUniverseAsset {
     blacklistStatus: toBlacklistStatus(asset.metadata?.blacklist_status),
     chain: asset.chain,
     sectors: asset.sectors || [],
+    venueAvailability: mapVenueAvailability(asset.asset_exchange_pairs),
     source: toMarketDataSource(asset.source)
   };
 }
